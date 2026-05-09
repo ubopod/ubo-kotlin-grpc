@@ -1,0 +1,55 @@
+[versions]
+# Toolchain
+agp = "8.7.3"
+kotlin = "2.0.21"
+coroutines = "1.9.0"
+
+# Protobuf / gRPC
+protobuf = "4.28.3"
+protobufPlugin = "0.9.4"
+grpc = "1.68.1"
+grpcKotlin = "1.4.1"
+
+# Tests
+junit5 = "5.11.3"
+truth = "1.4.4"
+
+# AndroidX
+androidxAnnotation = "1.9.1"
+
+# Android SDK levels (mirrors plan: API 31 / Android 12 / WearOS 3 floor)
+minSdk = "31"
+compileSdk = "34"
+
+[libraries]
+# Kotlin / coroutines
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
+coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+
+# Proto + gRPC runtime
+protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin", version.ref = "protobuf" }
+protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
+grpc-okhttp = { module = "io.grpc:grpc-okhttp", version.ref = "grpc" }
+grpc-protobuf = { module = "io.grpc:grpc-protobuf", version.ref = "grpc" }
+grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
+grpc-kotlin-stub = { module = "io.grpc:grpc-kotlin-stub", version.ref = "grpcKotlin" }
+
+# Code generators (consumed by the protobuf gradle plugin)
+protoc-binary = { module = "com.google.protobuf:protoc", version.ref = "protobuf" }
+protoc-gen-grpc-java = { module = "io.grpc:protoc-gen-grpc-java", version.ref = "grpc" }
+protoc-gen-grpc-kotlin = { module = "io.grpc:protoc-gen-grpc-kotlin", version.ref = "grpcKotlin" }
+
+# AndroidX
+androidx-annotation = { module = "androidx.annotation:annotation", version.ref = "androidxAnnotation" }
+
+# Tests
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
+truth = { module = "com.google.truth:truth", version.ref = "truth" }
+
+[plugins]
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+protobuf = { id = "com.google.protobuf", version.ref = "protobufPlugin" }

@@ -1,0 +1,17 @@
+# Gradle
+.gradle/
+.kotlin/
+build/
+out/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Generated proto sources are produced from src/main/proto/ at build time,
+# but the .proto files themselves are mirrored from ../ubo_app/rpc/proto/
+# via generate-protos.sh and ARE committed (see lib/src/main/proto/).
+local.properties
+captures/
