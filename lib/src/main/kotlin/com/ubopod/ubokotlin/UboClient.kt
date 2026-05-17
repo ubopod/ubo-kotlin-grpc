@@ -1,6 +1,5 @@
 package com.ubopod.ubokotlin
 
-import com.google.protobuf.ByteString
 import com.ubopod.ubokotlin.connection.ConnectionState
 import com.ubopod.ubokotlin.connection.ReconnectPolicy
 import com.ubopod.ubokotlin.connection.UboConnection
@@ -9,6 +8,7 @@ import com.ubopod.ubokotlin.models.AudioDevice
 import com.ubopod.ubokotlin.models.AudioSampleData
 import com.ubopod.ubokotlin.models.Chime
 import com.ubopod.ubokotlin.models.DisplayBlankTimeout
+import com.ubopod.ubokotlin.models.DisplayRenderData
 import com.ubopod.ubokotlin.models.Key
 import com.ubopod.ubokotlin.models.PlaybackEvent
 import com.ubopod.ubokotlin.models.StatusBarData
@@ -24,8 +24,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,6 +70,17 @@ public class UboClient(
     private val _lastError = MutableStateFlow<UboError?>(null)
     public val lastError: StateFlow<UboError?> = _lastError.asStateFlow()
 
+    private val _currentDisplay = MutableStateFlow<DisplayRenderData?>(null)
+
+    /**
+     * Latest raw display frame pushed by the device. Stays `null` unless
+     * [startDisplaySubscription] (or `connect(..., subscribeToDisplay = true)`)
+     * has been called.
+     *
+     * Mirrors Swift `UboClient.currentDisplay`.
+     */
+    public val currentDisplay: StateFlow<DisplayRenderData?> = _currentDisplay.asStateFlow()
+
     private val _currentView = MutableStateFlow<ViewData?>(null)
     public val currentView: StateFlow<ViewData?> = _currentView.asStateFlow()
 
@@ -88,6 +102,28 @@ public class UboClient(
     private val _activeInputs = MutableStateFlow<List<WebUIInputDescription>>(emptyList())
     public val activeInputs: StateFlow<List<WebUIInputDescription>> = _activeInputs.asStateFlow()
 
+    /**
+     * This client's stable id for the camera-source registration protocol.
+     * Set by the host app (typically derived from a per-install UUID); the
+     * camera subscription uses it to filter [isCameraViewfinderActive]
+     * transitions so only the selected source flips the flag. Empty
+     * disables the filter for back-compat with pre-source-id devices.
+     *
+     * Mirrors the Swift `UboClient.cameraSourceId` property.
+     */
+    public var cameraSourceId: String = ""
+
+    private val _cameraDetectAdvertise = MutableSharedFlow<Unit>(replay = 0, extraBufferCapacity = 1)
+
+    /**
+     * Fires when the device dispatches a `CameraDetectAdvertiseEvent`
+     * (user tapped "Detect Cameras"). Subscribers should respond with
+     * [registerAsCameraSource] so they are listed in the picker.
+     *
+     * Mirrors Swift `UboClient.cameraDetectAdvertiseSubject`.
+     */
+    public val cameraDetectAdvertise: SharedFlow<Unit> = _cameraDetectAdvertise.asSharedFlow()
+
     /** Tunable retry/backoff schedule for long-lived subscriptions. */
     public var reconnectPolicy: ReconnectPolicy
         get() = connection.reconnectPolicy
@@ -100,6 +136,7 @@ public class UboClient(
     private var inputsSubscriptionJob: Job? = null
     private var cameraSubscriptionJob: Job? = null
     private var playbackSubscriptionJob: Job? = null
+    private var displaySubscriptionJob: Job? = null
 
     public val isConnected: Boolean get() = _connectionState.value == ConnectionState.CONNECTED
 
@@ -108,12 +145,19 @@ public class UboClient(
     /**
      * Connect to an Ubo device.
      *
-     * Mirrors Swift `connect(host:port:security:subscribeToDisplay:)`. The
-     * Swift `subscribeToDisplay` flag is intentionally omitted on the
-     * Kotlin side: display-pixel streaming will land alongside the
-     * forthcoming `subscribeToDisplayRenderEvents` connection method.
+     * Mirrors Swift `connect(host:port:security:subscribeToDisplay:)`.
+     * The Swift port defaults `subscribeToDisplay` to `true` so the
+     * iPhone always mirrors the device's panel; Kotlin defaults it to
+     * `false` because the Android phone-app doesn't consume
+     * [currentDisplay] today and the stream is bandwidth-heavy. Set the
+     * flag to `true` (or call [startDisplaySubscription] explicitly) to
+     * enable raw frame mirroring.
      */
-    public suspend fun connect(host: String, port: Int = 50051): Unit = withContext(Dispatchers.IO) {
+    public suspend fun connect(
+        host: String,
+        port: Int = 50051,
+        subscribeToDisplay: Boolean = false,
+    ): Unit = withContext(Dispatchers.IO) {
         // The readiness probe (and gRPC OkHttp's first-RPC transport
         // setup, which contains some synchronous work) must NOT run on
         // Dispatchers.Main, otherwise a slow connect blocks the UI
@@ -125,6 +169,7 @@ public class UboClient(
         try {
             connection.connect(host, port)
             _connectionState.value = ConnectionState.CONNECTED
+            if (subscribeToDisplay) startDisplaySubscription()
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             // Caller went away mid-probe — let structured concurrency
             // unwind cleanly. Don't surface this as a user-visible error.
@@ -154,10 +199,13 @@ public class UboClient(
         cameraSubscriptionJob = null
         playbackSubscriptionJob?.cancel()
         playbackSubscriptionJob = null
+        displaySubscriptionJob?.cancel()
+        displaySubscriptionJob = null
 
         connection.disconnect()
         _connectionState.value = ConnectionState.DISCONNECTED
         _currentView.value = null
+        _currentDisplay.value = null
         _statusBar.value = null
         _systemStats.value = null
         _isCameraViewfinderActive.value = false
@@ -172,6 +220,42 @@ public class UboClient(
      */
     public fun close() {
         scope.cancel()
+    }
+
+    // ---- Display pixel subscription ----
+
+    /**
+     * Subscribe to raw display render events; each frame populates
+     * [currentDisplay]. Cancels any prior display subscription job.
+     *
+     * Mirrors Swift `UboClient.startDisplaySubscription()`. Off by
+     * default on [connect] because forwarding every device-side redraw
+     * costs bandwidth; callers that need a live screen mirror enable
+     * it explicitly.
+     */
+    public fun startDisplaySubscription() {
+        displaySubscriptionJob?.cancel()
+        displaySubscriptionJob = scope.launch {
+            connection.runWithRetry(
+                body = {
+                    connection.subscribeToDisplayRenderEvents().collect { frame ->
+                        _currentDisplay.value = frame
+                        connection.markConnected()
+                    }
+                },
+                onFinalError = { t ->
+                    if (_connectionState.value == ConnectionState.CONNECTED) {
+                        _lastError.value = (t as? UboError) ?: UboError.SubscriptionFailed(t)
+                    }
+                },
+            )
+        }
+    }
+
+    public fun stopDisplaySubscription() {
+        displaySubscriptionJob?.cancel()
+        displaySubscriptionJob = null
+        _currentDisplay.value = null
     }
 
     // ---- View subscription ----
@@ -263,12 +347,21 @@ public class UboClient(
                     connection.subscribeToCameraEvents().collect { event ->
                         when (event) {
                             is ProtoToState.CameraEvent.StartViewfinder -> {
-                                _cameraPattern.value = event.pattern
-                                _isCameraViewfinderActive.value = true
+                                // Honour the Pi's selection: empty sourceId
+                                // (legacy devices) keeps old "any source"
+                                // behaviour; otherwise only react when
+                                // this client owns the registration.
+                                if (event.sourceId.isEmpty() || event.sourceId == cameraSourceId) {
+                                    _cameraPattern.value = event.pattern
+                                    _isCameraViewfinderActive.value = true
+                                }
                             }
                             ProtoToState.CameraEvent.StopViewfinder -> {
                                 _isCameraViewfinderActive.value = false
                                 _cameraPattern.value = null
+                            }
+                            ProtoToState.CameraEvent.DetectAdvertise -> {
+                                _cameraDetectAdvertise.tryEmit(Unit)
                             }
                         }
                         connection.markConnected()
@@ -415,13 +508,18 @@ public class UboClient(
     // ---- Camera (frames → device) ----
 
     /**
-     * Send a single camera frame to the device as a `CameraReportImageEvent`.
+     * Send a single camera frame to the device as a `CameraReportImageAction`.
      *
      * @param data Encoded frame bytes (typically JPEG; the device's camera
      *   service decodes whatever you upload).
      * @param width Frame width in pixels.
      * @param height Frame height in pixels.
      * @param timestamp Capture timestamp in seconds.
+     *
+     * Tags the outbound action with [cameraSourceId] so the Pi can route
+     * the frame to the right pipeline (and drop it if some other source
+     * is currently selected). Remote clients can never dispatch events
+     * directly — events are emitted only from reducers.
      *
      * Mirrors Swift `UboClient.sendCameraFrame(data:width:height:timestamp:)`.
      */
@@ -430,27 +528,31 @@ public class UboClient(
         width: Int,
         height: Int,
         timestamp: Float,
-    ) {
-        if (!isConnected) throw UboError.NotConnected
-        val report = ubo.v1.Ubo.CameraReportImageEvent.newBuilder()
-            .setData(ByteString.copyFrom(data))
-            .setWidth(width.toLong())
-            .setHeight(height.toLong())
-            .setTimestamp(timestamp)
-            .build()
-        val event = ubo.v1.Ubo.Event.newBuilder()
-            .setCameraReportImageEvent(report)
-            .build()
-        try {
-            connection.dispatchEvent(event)
-        } catch (error: UboError) {
-            _lastError.value = error
-            throw error
-        } catch (t: Throwable) {
-            val wrapped = UboError.DispatchFailed(t)
-            _lastError.value = wrapped
-            throw wrapped
-        }
+    ): Unit = dispatch(
+        UboAction.CameraReportImage(
+            timestamp = timestamp,
+            data = data,
+            width = width,
+            height = height,
+            sourceId = cameraSourceId,
+        ),
+    )
+
+    /**
+     * Register this client as a remote camera source on the device. The
+     * device's camera picker will list it alongside its local USB /
+     * picamera devices; selecting it makes the device dispatch
+     * `CameraStartViewfinderEvent` here, at which point the host app
+     * should begin pumping frames via [sendCameraFrame].
+     *
+     * Side-effect: also assigns [cameraSourceId] so subsequent
+     * viewfinder events are correctly filtered for this client.
+     *
+     * Mirrors Swift `UboClient.registerAsCameraSource(id:label:)`.
+     */
+    public suspend fun registerAsCameraSource(id: String, label: String) {
+        cameraSourceId = id
+        dispatch(UboAction.CameraRegisterRemote(sourceId = id, label = label))
     }
 
     // ---- Display ----

@@ -184,30 +184,6 @@ public class UboConnection {
     }
 
     /**
-     * Dispatch a pre-built [ubo.v1.Ubo.Event] over the unary `DispatchEvent`
-     * RPC. Used by hardware-services that need to push a typed event up to
-     * the device — currently camera-frame uploads
-     * (`CameraReportImageEvent`).
-     *
-     * Mirrors the Swift `UboConnection.dispatchEvent(_:)`. Higher-level
-     * helpers on [com.ubopod.ubokotlin.UboClient] wrap this so callers
-     * don't have to touch the proto builders directly.
-     */
-    public suspend fun dispatchEvent(event: ubo.v1.Ubo.Event) {
-        val client = storeClient ?: throw UboError.NotConnected
-        val request = Store.DispatchEventRequest.newBuilder()
-            .setEvent(event)
-            .build()
-        try {
-            client.dispatchEvent(request)
-        } catch (cancel: CancellationException) {
-            throw cancel
-        } catch (t: Throwable) {
-            throw UboError.DispatchFailed(t)
-        }
-    }
-
-    /**
      * Subscribe to store-state changes and stream decoded
      * `(ViewData, StatusBarData?)` tuples. Each emission corresponds to one
      * server frame.
@@ -315,6 +291,9 @@ public class UboConnection {
             ubo.v1.Ubo.Event.newBuilder()
                 .setCameraStopViewfinderEvent(ubo.v1.Ubo.CameraStopViewfinderEvent.getDefaultInstance())
                 .build(),
+            ubo.v1.Ubo.Event.newBuilder()
+                .setCameraDetectAdvertiseEvent(ubo.v1.Ubo.CameraDetectAdvertiseEvent.getDefaultInstance())
+                .build(),
         )
         val request = Store.SubscribeEventRequest.newBuilder()
             .addAllEvents(filter)
@@ -322,6 +301,38 @@ public class UboConnection {
         try {
             client.subscribeEvent(request).collect { response ->
                 ProtoToState.convertCameraEvent(response.event)?.let { emit(it) }
+            }
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (t: Throwable) {
+            throw UboError.SubscriptionFailed(t)
+        }
+    }
+
+    /**
+     * Subscribe to the device's raw display render events. Each
+     * emission carries one [com.ubopod.ubokotlin.models.DisplayRenderData]
+     * frame — the rectangle, density, and packed RGB bytes the device
+     * just pushed onto its panel.
+     *
+     * Mirrors the Swift `UboConnection.subscribeToDisplayRenderEvents()`.
+     * Heavy: every frame the device redraws is forwarded, so callers
+     * should treat this as an opt-in stream (off by default on
+     * [com.ubopod.ubokotlin.UboClient.connect]).
+     */
+    public fun subscribeToDisplayRenderEvents(): Flow<com.ubopod.ubokotlin.models.DisplayRenderData> = flow {
+        val client = storeClient ?: throw UboError.NotConnected
+        val filter = listOf(
+            ubo.v1.Ubo.Event.newBuilder()
+                .setDisplayRenderEvent(ubo.v1.Ubo.DisplayRenderEvent.getDefaultInstance())
+                .build(),
+        )
+        val request = Store.SubscribeEventRequest.newBuilder()
+            .addAllEvents(filter)
+            .build()
+        try {
+            client.subscribeEvent(request).collect { response ->
+                ProtoToState.convertDisplayRenderEvent(response.event)?.let { emit(it) }
             }
         } catch (cancel: CancellationException) {
             throw cancel

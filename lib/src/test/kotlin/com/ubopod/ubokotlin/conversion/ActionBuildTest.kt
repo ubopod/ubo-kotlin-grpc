@@ -134,4 +134,33 @@ class ActionBuildTest {
         assertThat(build(UboAction.Reboot).actionCase)
             .isEqualTo(Ubo.Action.ActionCase.REBOOT_ACTION)
     }
+
+    @Test
+    fun `camera register remote carries sourceId + label`() {
+        val proto = build(UboAction.CameraRegisterRemote(sourceId = "phone-abc", label = "Pixel"))
+        assertThat(proto.actionCase).isEqualTo(Ubo.Action.ActionCase.CAMERA_REGISTER_REMOTE_ACTION)
+        assertThat(proto.cameraRegisterRemoteAction.sourceId).isEqualTo("phone-abc")
+        assertThat(proto.cameraRegisterRemoteAction.label).isEqualTo("Pixel")
+    }
+
+    @Test
+    fun `camera report image carries frame + sourceId`() {
+        val frame = byteArrayOf(0x0A, 0x0B, 0x0C)
+        val proto = build(
+            UboAction.CameraReportImage(
+                timestamp = 1.25f,
+                data = frame,
+                width = 320,
+                height = 240,
+                sourceId = "phone-abc",
+            ),
+        )
+        assertThat(proto.actionCase).isEqualTo(Ubo.Action.ActionCase.CAMERA_REPORT_IMAGE_ACTION)
+        val p = proto.cameraReportImageAction
+        assertThat(p.timestamp).isEqualTo(1.25f)
+        assertThat(p.data.toByteArray()).isEqualTo(frame)
+        assertThat(p.width).isEqualTo(320L)
+        assertThat(p.height).isEqualTo(240L)
+        assertThat(p.sourceId).isEqualTo("phone-abc")
+    }
 }

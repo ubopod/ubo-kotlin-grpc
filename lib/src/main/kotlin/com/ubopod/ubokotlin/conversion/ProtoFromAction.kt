@@ -274,6 +274,23 @@ public object ProtoFromAction {
             UboAction.AssistantToggleListening -> builder.setAssistantToggleListeningAction(
                 Ubo.AssistantToggleListeningAction.getDefaultInstance(),
             )
+
+            // ---- Camera ----
+            is UboAction.CameraRegisterRemote -> builder.setCameraRegisterRemoteAction(
+                Ubo.CameraRegisterRemoteAction.newBuilder()
+                    .setSourceId(action.sourceId)
+                    .setLabel(action.label)
+                    .build(),
+            )
+            is UboAction.CameraReportImage -> builder.setCameraReportImageAction(
+                Ubo.CameraReportImageAction.newBuilder()
+                    .setTimestamp(action.timestamp)
+                    .setData(ByteString.copyFrom(action.data))
+                    .setWidth(action.width.toLong())
+                    .setHeight(action.height.toLong())
+                    .setSourceId(action.sourceId)
+                    .build(),
+            )
         }
         return builder.build()
     }

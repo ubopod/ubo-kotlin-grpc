@@ -2,6 +2,8 @@ package com.ubopod.ubokotlin.conversion
 
 import com.google.protobuf.Any
 import com.ubopod.ubokotlin.models.AudioSampleData
+import com.ubopod.ubokotlin.models.DisplayRectangle
+import com.ubopod.ubokotlin.models.DisplayRenderData
 import com.ubopod.ubokotlin.models.InputFieldDescription
 import com.ubopod.ubokotlin.models.InputFieldType
 import com.ubopod.ubokotlin.models.PlaybackEvent
@@ -27,10 +29,27 @@ public object ProtoToState {
      * Camera viewfinder events. Driven by the Python core's
      * `state.camera`; the connected client starts / stops its local
      * camera capture in response.
+     *
+     * Mirrors the Swift `UboConnection.CameraEventType` enum.
      */
     public sealed class CameraEvent {
-        public data class StartViewfinder(val pattern: String?) : CameraEvent()
+        /**
+         * Pi has decided this source should start capturing.
+         *
+         * [sourceId] is the registered id of the chosen source.
+         * Clients should ignore the event unless it matches their own
+         * — except for empty, which means "any source" (back-compat
+         * with pre-source-id devices).
+         */
+        public data class StartViewfinder(val pattern: String?, val sourceId: String) : CameraEvent()
         public object StopViewfinder : CameraEvent()
+
+        /**
+         * Pi tapped "Detect Cameras". Subscribed clients should respond
+         * with a `CameraRegisterRemote` action so they are listed in
+         * the picker.
+         */
+        public object DetectAdvertise : CameraEvent()
     }
 
     // ---- Per-frame merge of SubscribeStore results ----
@@ -65,6 +84,15 @@ public object ProtoToState {
                     val s = Ubo.SensorsState.parseFrom(any.value)
                     val t = if (s.hasTemperature() && s.temperature.hasValue()) s.temperature.value else current.temperature
                     current = current.copy(temperature = t)
+                    changed = true
+                }
+                "AudioState" -> {
+                    val s = Ubo.AudioState.parseFrom(any.value)
+                    current = current.copy(
+                        playbackVolume = if (s.hasPlaybackVolume()) s.playbackVolume else current.playbackVolume,
+                        isPlaybackMute = if (s.hasIsPlaybackMute()) s.isPlaybackMute else current.isPlaybackMute,
+                        isCaptureMute = if (s.hasIsCaptureMute()) s.isCaptureMute else current.isCaptureMute,
+                    )
                     changed = true
                 }
             }
@@ -122,9 +150,13 @@ public object ProtoToState {
     public fun convertCameraEvent(event: Ubo.Event): CameraEvent? = when (event.eventCase) {
         Ubo.Event.EventCase.CAMERA_START_VIEWFINDER_EVENT -> {
             val payload = event.cameraStartViewfinderEvent
-            CameraEvent.StartViewfinder(if (payload.hasPattern()) payload.pattern else null)
+            CameraEvent.StartViewfinder(
+                pattern = if (payload.hasPattern()) payload.pattern else null,
+                sourceId = if (payload.hasSourceId()) payload.sourceId else "",
+            )
         }
         Ubo.Event.EventCase.CAMERA_STOP_VIEWFINDER_EVENT -> CameraEvent.StopViewfinder
+        Ubo.Event.EventCase.CAMERA_DETECT_ADVERTISE_EVENT -> CameraEvent.DetectAdvertise
         else -> null
     }
 
@@ -157,4 +189,33 @@ public object ProtoToState {
         rate = p.rate.toInt(),
         width = p.width.toInt(),
     )
+
+    // ---- Display render events from SubscribeEvent frames ----
+
+    /**
+     * Convert a [Ubo.DisplayRenderEvent] into the public [DisplayRenderData]
+     * model. The proto `rectangle` is a `repeated int64` of four entries
+     * `[y1, x1, y2, x2]`; missing trailing entries default to `0` for
+     * back-compat with the Swift port's safe-indexing logic.
+     */
+    public fun convertDisplayRenderEvent(event: Ubo.Event): DisplayRenderData? =
+        if (event.eventCase == Ubo.Event.EventCase.DISPLAY_RENDER_EVENT) {
+            val p = event.displayRenderEvent
+            val rect = p.rectangleList
+            DisplayRenderData(
+                // `timestamp` and `density` are non-optional proto3 scalars
+                // — no `hasX()` accessors. Treat their default (0f) as
+                // "not provided" for [density] and surface a 1.0 default
+                // so callers don't divide by zero.
+                timestamp = p.timestamp.toDouble(),
+                data = p.data.toByteArray(),
+                rectangle = DisplayRectangle(
+                    y1 = rect.getOrNull(0)?.toInt() ?: 0,
+                    x1 = rect.getOrNull(1)?.toInt() ?: 0,
+                    y2 = rect.getOrNull(2)?.toInt() ?: 0,
+                    x2 = rect.getOrNull(3)?.toInt() ?: 0,
+                ),
+                density = if (p.density > 0f) p.density else 1f,
+            )
+        } else null
 }

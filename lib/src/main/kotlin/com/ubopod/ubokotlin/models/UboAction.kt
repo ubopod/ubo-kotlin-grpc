@@ -91,4 +91,49 @@ public sealed class UboAction {
     public object AssistantStartListening : UboAction()
     public object AssistantStopListening : UboAction()
     public object AssistantToggleListening : UboAction()
+
+    // ---- Camera ----
+
+    /**
+     * Register this client as a remote camera source on the device.
+     * The Pi-side camera picker lists it alongside any local cameras;
+     * selecting it triggers a `CameraStartViewfinderEvent` tagged with
+     * the same [sourceId].
+     */
+    public data class CameraRegisterRemote(val sourceId: String, val label: String) : UboAction()
+
+    /**
+     * Report one camera frame to the device. The Pi-side reducer
+     * forwards the frame to the QR decoder + viewfinder display only
+     * when [sourceId] matches the currently-selected source; remote
+     * clients can never dispatch events directly, so frames must go
+     * through this action.
+     */
+    public data class CameraReportImage(
+        val timestamp: Float,
+        val data: ByteArray,
+        val width: Int,
+        val height: Int,
+        val sourceId: String,
+    ) : UboAction() {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+            other as CameraReportImage
+            return timestamp == other.timestamp &&
+                width == other.width &&
+                height == other.height &&
+                sourceId == other.sourceId &&
+                data.contentEquals(other.data)
+        }
+
+        override fun hashCode(): Int {
+            var result = timestamp.hashCode()
+            result = 31 * result + width
+            result = 31 * result + height
+            result = 31 * result + sourceId.hashCode()
+            result = 31 * result + data.contentHashCode()
+            return result
+        }
+    }
 }

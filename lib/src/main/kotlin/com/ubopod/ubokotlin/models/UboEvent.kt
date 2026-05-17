@@ -71,11 +71,25 @@ public sealed class UboEvent {
     /** Reboot initiated. */
     public object Reboot : UboEvent()
 
-    /** Camera viewfinder started — device wants frames. */
-    public data class CameraStartViewfinder(val pattern: String?) : UboEvent()
+    /**
+     * Camera viewfinder started — device wants frames.
+     *
+     * [sourceId] identifies which registered camera source the device
+     * chose. Clients should ignore the event unless [sourceId] matches
+     * their own registration (or is empty, which means "any source"
+     * for backwards compat with legacy devices).
+     */
+    public data class CameraStartViewfinder(val pattern: String?, val sourceId: String) : UboEvent()
 
     /** Camera viewfinder stopped — device no longer needs frames. */
     public object CameraStopViewfinder : UboEvent()
+
+    /**
+     * Device tapped "Detect Cameras"; every remote-camera subscriber
+     * should respond with a `CameraRegisterRemote` action so it is
+     * listed in the picker.
+     */
+    public object CameraDetectAdvertise : UboEvent()
 
     /** Generic / unknown event with the type-URL suffix the server sent. */
     public data class Unknown(val type: String) : UboEvent()
