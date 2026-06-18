@@ -25,7 +25,18 @@ public sealed class UboAction {
     public data class AudioSetMute(val muted: Boolean, val device: AudioDevice) : UboAction()
     public data class AudioToggleMute(val device: AudioDevice) : UboAction()
     public data class AudioPlayChime(val chime: Chime) : UboAction()
-    public data class AudioReportSample(val timestamp: Float, val sample: AudioSampleData) : UboAction()
+    /**
+     * Report a captured mic sample. [audioSource] tags which mic the sample
+     * came from (empty = on-device system mic; a remote client sets a unique
+     * id so the core binds a listening session to that one source). It must
+     * match the [audioSource] on the [AssistantStartListening] that opened the
+     * session, or the core drops the sample.
+     */
+    public data class AudioReportSample(
+        val timestamp: Float,
+        val sample: AudioSampleData,
+        val audioSource: String = "",
+    ) : UboAction()
     public object AudioStartRecording : UboAction()
     public object AudioStopRecording : UboAction()
     public object AudioPlayRecording : UboAction()
@@ -88,9 +99,17 @@ public sealed class UboAction {
 
     // ---- Assistant ----
 
-    public object AssistantStartListening : UboAction()
+    /**
+     * Start assistant listening. [audioSource] selects which mic the session
+     * consumes (empty = on-device system mic; a remote client sets a unique id
+     * so the core listens only to that client's streamed samples and ignores
+     * the device's built-in mic).
+     */
+    public data class AssistantStartListening(val audioSource: String = "") : UboAction()
     public object AssistantStopListening : UboAction()
-    public object AssistantToggleListening : UboAction()
+
+    /** Toggle assistant listening. See [AssistantStartListening] for [audioSource]. */
+    public data class AssistantToggleListening(val audioSource: String = "") : UboAction()
 
     // ---- Camera ----
 

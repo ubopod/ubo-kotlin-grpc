@@ -492,16 +492,23 @@ public class UboClient(
 
     public suspend fun playRecording(): Unit = dispatch(UboAction.AudioPlayRecording)
 
+    /**
+     * [audioSource] must match the id passed to [startAssistantListening] for
+     * this session, so the core accepts these samples and drops the device's
+     * built-in mic. Empty means the on-device system mic.
+     */
     public suspend fun reportAudioSample(
         timestamp: Float,
         data: ByteArray,
         channels: Int = 1,
         rate: Int = 16000,
         width: Int = 2,
+        audioSource: String = "",
     ): Unit = dispatch(
         UboAction.AudioReportSample(
             timestamp = timestamp,
             sample = AudioSampleData(data, channels, rate, width),
+            audioSource = audioSource,
         ),
     )
 
@@ -621,9 +628,20 @@ public class UboClient(
 
     // ---- Assistant ----
 
-    public suspend fun startAssistantListening(): Unit = dispatch(UboAction.AssistantStartListening)
+    /**
+     * Start assistant listening. Pass [audioSource] when this client also
+     * streams its own microphone (see [reportAudioSample]): the core binds the
+     * session to that id and ignores the device's built-in mic. Leave it empty
+     * to use the on-device system mic. The same id must be set on every
+     * [reportAudioSample].
+     */
+    public suspend fun startAssistantListening(audioSource: String = ""): Unit =
+        dispatch(UboAction.AssistantStartListening(audioSource))
     public suspend fun stopAssistantListening(): Unit = dispatch(UboAction.AssistantStopListening)
-    public suspend fun toggleAssistantListening(): Unit = dispatch(UboAction.AssistantToggleListening)
+
+    /** Toggle assistant listening. See [startAssistantListening] for [audioSource]. */
+    public suspend fun toggleAssistantListening(audioSource: String = ""): Unit =
+        dispatch(UboAction.AssistantToggleListening(audioSource))
 
     /**
      * Toggle playback of an audio chat bubble. On the device this is bound to

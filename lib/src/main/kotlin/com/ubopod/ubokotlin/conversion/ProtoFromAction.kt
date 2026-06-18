@@ -92,7 +92,13 @@ public object ProtoFromAction {
             is UboAction.AudioReportSample -> builder.setAudioReportSampleAction(
                 Ubo.AudioReportSampleAction.newBuilder()
                     .setTimestamp(action.timestamp)
+                    // The assistant pipeline consumes `sample_speech_recognition`
+                    // (raw PCM16 bytes), NOT the `sample` AudioSample (that feeds
+                    // the recording path). The Web UI sets this; we must too, or
+                    // the core pushes empty frames and nothing reaches the assistant.
+                    .setSampleSpeechRecognition(ByteString.copyFrom(action.sample.data))
                     .setSample(toProtoAudioSample(action.sample))
+                    .setAudioSource(action.audioSource)
                     .build(),
             )
             UboAction.AudioStartRecording -> builder.setAudioStartRecordingAction(
@@ -265,14 +271,18 @@ public object ProtoFromAction {
             )
 
             // ---- Assistant ----
-            UboAction.AssistantStartListening -> builder.setAssistantStartListeningAction(
-                Ubo.AssistantStartListeningAction.getDefaultInstance(),
+            is UboAction.AssistantStartListening -> builder.setAssistantStartListeningAction(
+                Ubo.AssistantStartListeningAction.newBuilder()
+                    .setAudioSource(action.audioSource)
+                    .build(),
             )
             UboAction.AssistantStopListening -> builder.setAssistantStopListeningAction(
                 Ubo.AssistantStopListeningAction.getDefaultInstance(),
             )
-            UboAction.AssistantToggleListening -> builder.setAssistantToggleListeningAction(
-                Ubo.AssistantToggleListeningAction.getDefaultInstance(),
+            is UboAction.AssistantToggleListening -> builder.setAssistantToggleListeningAction(
+                Ubo.AssistantToggleListeningAction.newBuilder()
+                    .setAudioSource(action.audioSource)
+                    .build(),
             )
 
             // ---- Camera ----
