@@ -291,6 +291,11 @@ public object ProtoFromAction {
                     .setSourceId(action.sourceId)
                     .build(),
             )
+            is UboAction.ChatToggleAudioPlayback -> builder.setChatToggleAudioPlaybackAction(
+                Ubo.ChatToggleAudioPlaybackAction.newBuilder()
+                    .setMessageId(action.messageId)
+                    .build(),
+            )
         }
         return builder.build()
     }

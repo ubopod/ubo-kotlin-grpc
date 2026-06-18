@@ -3,6 +3,8 @@ package com.ubopod.ubokotlin.conversion
 import com.google.protobuf.Any
 import com.google.protobuf.InvalidProtocolBufferException
 import com.ubopod.ubokotlin.models.ApplicationViewData
+import com.ubopod.ubokotlin.models.ChatBubbleData
+import com.ubopod.ubokotlin.models.ChatViewData
 import com.ubopod.ubokotlin.models.HomeViewData
 import com.ubopod.ubokotlin.models.InstructionViewData
 import com.ubopod.ubokotlin.models.MenuItemData
@@ -60,6 +62,8 @@ public object ProtoToView {
                 ViewData.Prompt(convertPromptViewData(Ubo.PromptViewData.parseFrom(any.value)))
             "RenderViewData" ->
                 ViewData.Render(convertRenderViewData(Ubo.RenderViewData.parseFrom(any.value)))
+            "ChatViewData" ->
+                ViewData.Chat(convertChatViewData(Ubo.ChatViewData.parseFrom(any.value)))
             else -> null
         }
     }
@@ -181,6 +185,29 @@ public object ProtoToView {
         } else emptyMap(),
         items = if (p.hasItems()) p.items.itemsList.map { convertMenuItem(it) } else emptyList(),
         streamId = if (p.hasStreamId()) p.streamId else "",
+    )
+
+    public fun convertChatBubbleData(p: Ubo.ChatBubbleData): ChatBubbleData = ChatBubbleData(
+        messageId = if (p.hasMessageId()) p.messageId else "",
+        role = if (p.hasRole()) p.role else "assistant",
+        alignment = if (p.hasAlignment()) p.alignment else "left",
+        kind = if (p.hasKind()) p.kind else "text",
+        text = if (p.hasText()) p.text else "",
+        color = if (p.hasColor()) p.color else "#ffffff",
+        backgroundColor = if (p.hasBackgroundColor()) p.backgroundColor else "#2b2f38",
+        pointerKey = if (p.hasPointerKey()) p.pointerKey else "",
+        isPlaying = if (p.hasIsPlaying()) p.isPlaying else false,
+        waveform = if (p.hasWaveform()) p.waveform.itemsList else emptyList(),
+    )
+
+    public fun convertChatViewData(p: Ubo.ChatViewData): ChatViewData = ChatViewData(
+        type = if (p.hasType()) p.type else "chat",
+        showStatusBar = if (p.hasShowStatusBar()) p.showStatusBar else false,
+        bubbles = if (p.hasBubbles()) p.bubbles.itemsList.map { convertChatBubbleData(it) } else emptyList(),
+        items = if (p.hasItems()) p.items.itemsList.map { convertMenuItem(it) } else emptyList(),
+        scrollOffset = if (p.hasScrollOffset()) p.scrollOffset.toInt() else 0,
+        totalBubbles = if (p.hasTotalBubbles()) p.totalBubbles.toInt() else 0,
+        stackDepth = if (p.hasStackDepth()) p.stackDepth.toInt() else 1,
     )
 
     // -------- Status bar --------

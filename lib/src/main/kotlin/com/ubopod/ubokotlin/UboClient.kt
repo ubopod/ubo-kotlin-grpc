@@ -625,6 +625,14 @@ public class UboClient(
     public suspend fun stopAssistantListening(): Unit = dispatch(UboAction.AssistantStopListening)
     public suspend fun toggleAssistantListening(): Unit = dispatch(UboAction.AssistantToggleListening)
 
+    /**
+     * Toggle playback of an audio chat bubble. On the device this is bound to
+     * the bubble's L1/L2/L3 button; touch clients call this when the bubble is
+     * tapped. The core flips the bubble's `is_playing` flag.
+     */
+    public suspend fun toggleChatAudio(messageId: String): Unit =
+        dispatch(UboAction.ChatToggleAudioPlayback(messageId))
+
     // ---- Input demands ----
 
     public suspend fun provideInput(id: String, value: String): Unit =

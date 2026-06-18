@@ -136,4 +136,12 @@ public sealed class UboAction {
             return result
         }
     }
+
+    /**
+     * Toggle playback of an audio chat bubble. The Pi-side chat reducer flips
+     * the bubble's `is_playing` flag and starts/stops audio. On hardware this
+     * is bound to the bubble's L1/L2/L3 button; touch clients dispatch it when
+     * the bubble is tapped.
+     */
+    public data class ChatToggleAudioPlayback(val messageId: String) : UboAction()
 }

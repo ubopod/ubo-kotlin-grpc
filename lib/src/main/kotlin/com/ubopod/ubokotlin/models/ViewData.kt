@@ -142,8 +142,41 @@ public data class PromptViewData(
 )
 
 /**
- * Union type for all view data variants. Mirrors the Swift `enum ViewData`
- * with seven cases.
+ * Fully-resolved representation of one chat speech bubble. Everything the
+ * renderer needs is precomputed by the core's `get_chat_view_data` —
+ * alignment, colors, the L1/L2/L3 pointer binding, and (for audio bubbles)
+ * the waveform. The client only draws what this describes.
+ */
+public data class ChatBubbleData(
+    val messageId: String = "",
+    val role: String = "assistant", // "user" | "assistant"
+    val alignment: String = "left", // "left" (assistant) | "right" (user)
+    val kind: String = "text", // "text" | "audio"
+    val text: String = "",
+    val color: String = "#ffffff", // foreground (text / waveform) color
+    val backgroundColor: String = "#2b2f38", // bubble fill color
+    val pointerKey: String = "", // "" | "L1" | "L2" | "L3" — bound button
+    val isPlaying: Boolean = false, // audio bubble currently playing
+    val waveform: List<Float> = emptyList(), // normalized (0..1) bar heights
+)
+
+/**
+ * Data for rendering the chat overlay view. The store computes this from the
+ * `chat` slice; `items` holds up to three `MenuItemData` entries (L1/L2/L3
+ * button bindings).
+ */
+public data class ChatViewData(
+    val type: String = "chat",
+    val showStatusBar: Boolean = false,
+    val bubbles: List<ChatBubbleData> = emptyList(),
+    val items: List<MenuItemData> = emptyList(),
+    val scrollOffset: Int = 0,
+    val totalBubbles: Int = 0,
+    val stackDepth: Int = 1,
+)
+
+/**
+ * Union type for all view data variants. Mirrors the Swift `enum ViewData`.
  */
 public sealed class ViewData {
     public abstract val type: String
@@ -184,6 +217,11 @@ public sealed class ViewData {
         override val showStatusBar: Boolean get() = data.showStatusBar
     }
 
+    public data class Chat(val data: ChatViewData) : ViewData() {
+        override val type: String get() = data.type
+        override val showStatusBar: Boolean get() = data.showStatusBar
+    }
+
     public val isHome: Boolean get() = this is Home
     public val isMenu: Boolean get() = this is Menu
     public val isNotification: Boolean get() = this is Notification
@@ -191,6 +229,7 @@ public sealed class ViewData {
     public val isInstruction: Boolean get() = this is Instruction
     public val isPrompt: Boolean get() = this is Prompt
     public val isRender: Boolean get() = this is Render
+    public val isChat: Boolean get() = this is Chat
 
     public override fun toString(): String = when (this) {
         is Home -> "HomeView(items: ${data.menuItems.size}, cpu: ${data.cpuPercent.toInt()}%, ram: ${data.ramPercent.toInt()}%)"
@@ -200,5 +239,6 @@ public sealed class ViewData {
         is Instruction -> "InstructionView(title: \"${data.title}\", spinner: ${data.spinner})"
         is Prompt -> "PromptView(title: \"${data.title}\", items: ${data.items.size})"
         is Render -> "RenderView(kind: ${data.kind.rawValue}, title: \"${data.title}\")"
+        is Chat -> "ChatView(bubbles: ${data.bubbles.size}/${data.totalBubbles}, scroll: ${data.scrollOffset})"
     }
 }
