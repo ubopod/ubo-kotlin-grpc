@@ -55,13 +55,18 @@ public class UboConnection {
     public var reconnectPolicy: ReconnectPolicy = ReconnectPolicy.Default
 
     /**
-     * Open a plaintext gRPC connection to `host:port`. The new channel
-     * replaces any previous one (which is shut down first).
+     * Open a gRPC connection to `host:port`. The new channel replaces any
+     * previous one (which is shut down first).
      *
-     * Mirrors Swift `UboConnection.connect(host:port:security:)`.
+     * When [useTls] is `true` the channel negotiates TLS using the system
+     * trust store (for reaching the device through a TLS-terminating reverse
+     * proxy/tunnel); otherwise it connects in plaintext for a direct LAN
+     * connection to the device's gRPC port.
+     *
+     * Mirrors Swift `UboConnection.connect(host:port:useTLS:)`.
      */
-    public suspend fun connect(host: String, port: Int = 50051) {
-        Log.d(TAG, "connect($host:$port) start, thread=${Thread.currentThread().name}")
+    public suspend fun connect(host: String, port: Int = 50051, useTls: Boolean = false) {
+        Log.d(TAG, "connect($host:$port, tls=$useTls) start, thread=${Thread.currentThread().name}")
         mutex.withLock {
             Log.d(TAG, "  acquired mutex")
             channel?.shutdownNow()
@@ -71,7 +76,7 @@ public class UboConnection {
 
             val newChannel = try {
                 OkHttpChannelBuilder.forAddress(host, port)
-                    .usePlaintext()
+                    .apply { if (!useTls) usePlaintext() }
                     .build()
                     .also { Log.d(TAG, "  channel built") }
             } catch (cancel: CancellationException) {

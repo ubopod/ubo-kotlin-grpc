@@ -156,6 +156,7 @@ public class UboClient(
     public suspend fun connect(
         host: String,
         port: Int = 50051,
+        useTls: Boolean = false,
         subscribeToDisplay: Boolean = false,
     ): Unit = withContext(Dispatchers.IO) {
         // The readiness probe (and gRPC OkHttp's first-RPC transport
@@ -167,7 +168,7 @@ public class UboClient(
         _connectionState.value = ConnectionState.CONNECTING
         _lastError.value = null
         try {
-            connection.connect(host, port)
+            connection.connect(host, port, useTls)
             _connectionState.value = ConnectionState.CONNECTED
             if (subscribeToDisplay) startDisplaySubscription()
         } catch (cancel: kotlinx.coroutines.CancellationException) {
