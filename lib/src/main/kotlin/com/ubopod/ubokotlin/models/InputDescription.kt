@@ -16,7 +16,8 @@ public enum class InputFieldType(public val rawValue: String, public val protoVa
     SELECT("select", 7),
     FILE("file", 8),
     DATE("date", 9),
-    TIME("time", 10);
+    TIME("time", 10),
+    RANGE("range", 11);
 
     public companion object {
         /**

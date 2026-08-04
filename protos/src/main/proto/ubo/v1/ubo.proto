@@ -564,6 +564,7 @@ message MainState {
   optional RecordedSequence recorded_sequence = 11;
   optional ViewData current_view = 12;
   optional StatusBarData status_bar = 13;
+  optional bool is_local_overlay_open = 14;
 }
 
 message MainAction {
@@ -635,6 +636,12 @@ message PowerOffAction {
 message RebootAction {
   option (package_info.v1.package_name) = "ubo_app.store.core.types.actions";
   optional string meta_field_package_name_ubo_app_dot_store_dot_core_dot_types_dot_actions = 1000;
+}
+
+message SetLocalOverlayOpenAction {
+  option (package_info.v1.package_name) = "ubo_app.store.core.types.actions";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_core_dot_types_dot_actions = 1000;
+  optional bool is_open = 2;
 }
 
 message SetAreEnclosuresVisibleAction {
@@ -1131,6 +1138,11 @@ message ApplicationScrollEvent {
   string direction = 2;
 }
 
+message LocalOverlayGoBackEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.core.types.events";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_core_dot_types_dot_events = 1000;
+}
+
 message FrameStreamDataEvent {
   option (package_info.v1.package_name) = "ubo_app.store.core.types.events";
   optional string meta_field_package_name_ubo_app_dot_store_dot_core_dot_types_dot_events = 1000;
@@ -1138,6 +1150,16 @@ message FrameStreamDataEvent {
   bytes data = 3;
   int64 width = 4;
   int64 height = 5;
+}
+
+message FrameStreamChunkEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.core.types.events";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_core_dot_types_dot_events = 1000;
+  string stream_id = 2;
+  bytes data = 3;
+  int64 width = 4;
+  int64 height = 5;
+  int64 row_offset = 6;
 }
 
 message ScreenshotDataEvent {
@@ -1220,6 +1242,7 @@ enum InputFieldType {
   INPUT_FIELD_TYPE_FILE = 8;
   INPUT_FIELD_TYPE_DATE = 9;
   INPUT_FIELD_TYPE_TIME = 10;
+  INPUT_FIELD_TYPE_RANGE = 11;
 }
 
 message InputResult {
@@ -1379,6 +1402,16 @@ message SettingsToggleBetaVersionsAction {
   optional string meta_field_package_name_ubo_app_dot_store_dot_settings_dot_types = 1000;
 }
 
+message SettingsToggleGrpcRemoteAccessAction {
+  option (package_info.v1.package_name) = "ubo_app.store.settings.types";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_settings_dot_types = 1000;
+}
+
+message SettingsToggleAssistantDebugAction {
+  option (package_info.v1.package_name) = "ubo_app.store.settings.types";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_settings_dot_types = 1000;
+}
+
 message SettingsSetServicesAction {
   option (package_info.v1.package_name) = "ubo_app.store.settings.types";
   optional string meta_field_package_name_ubo_app_dot_store_dot_settings_dot_types = 1000;
@@ -1503,8 +1536,10 @@ message SettingsState {
   optional bool pdb_signal = 2;
   optional bool visual_debug = 3;
   optional bool beta_versions = 4;
-  optional ServicesDict services = 5;
-  optional ServicesStatus services_status = 6;
+  optional bool grpc_remote_access = 5;
+  optional bool assistant_debug = 6;
+  optional ServicesDict services = 7;
+  optional ServicesStatus services_status = 8;
 }
 
 message IconState {
@@ -1615,12 +1650,14 @@ message UpdateManagerState {
 enum AssistantSTTName {
   ASSISTANT_STT_NAME_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_ASSISTANT_UNSPECIFIED = 0;
   ASSISTANT_STT_NAME_VOSK = 1;
-  ASSISTANT_STT_NAME_GOOGLE_SEGMENTED = 2;
-  ASSISTANT_STT_NAME_GOOGLE = 3;
-  ASSISTANT_STT_NAME_OPENAI = 4;
-  ASSISTANT_STT_NAME_DEEPGRAM = 5;
-  ASSISTANT_STT_NAME_ASSEMBLYAI = 6;
-  ASSISTANT_STT_NAME_VENICE = 7;
+  ASSISTANT_STT_NAME_MOONSHINE = 2;
+  ASSISTANT_STT_NAME_GOOGLE_SEGMENTED = 3;
+  ASSISTANT_STT_NAME_GOOGLE = 4;
+  ASSISTANT_STT_NAME_OPENAI = 5;
+  ASSISTANT_STT_NAME_DEEPGRAM = 6;
+  ASSISTANT_STT_NAME_ASSEMBLYAI = 7;
+  ASSISTANT_STT_NAME_VENICE = 8;
+  ASSISTANT_STT_NAME_MISTRAL = 9;
 }
 
 enum AssistantLLMName {
@@ -1649,12 +1686,15 @@ enum AssistantTTSName {
   ASSISTANT_TTS_NAME_ELEVENLABS = 5;
   ASSISTANT_TTS_NAME_RIME = 6;
   ASSISTANT_TTS_NAME_VENICE = 7;
+  ASSISTANT_TTS_NAME_DEEPGRAM = 8;
+  ASSISTANT_TTS_NAME_MISTRAL = 9;
 }
 
 enum AssistantImageGeneratorName {
   ASSISTANT_IMAGE_GENERATOR_NAME_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_ASSISTANT_UNSPECIFIED = 0;
   ASSISTANT_IMAGE_GENERATOR_NAME_GOOGLE = 1;
   ASSISTANT_IMAGE_GENERATOR_NAME_OPENAI = 2;
+  ASSISTANT_IMAGE_GENERATOR_NAME_VENICE = 3;
 }
 
 enum AssistantPipelineStage {
@@ -1664,10 +1704,10 @@ enum AssistantPipelineStage {
   ASSISTANT_PIPELINE_STAGE_TTS = 3;
 }
 
-enum McpServerType {
-  MCP_SERVER_TYPE_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_ASSISTANT_UNSPECIFIED = 0;
-  MCP_SERVER_TYPE_STDIO = 1;
-  MCP_SERVER_TYPE_SSE = 2;
+enum AssistantTurnCompletionMode {
+  ASSISTANT_TURN_COMPLETION_MODE_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_ASSISTANT_UNSPECIFIED = 0;
+  ASSISTANT_TURN_COMPLETION_MODE_SILENCE = 1;
+  ASSISTANT_TURN_COMPLETION_MODE_MANUAL = 2;
 }
 
 message GenericLLMProvider {
@@ -1677,52 +1717,28 @@ message GenericLLMProvider {
   string label = 3;
 }
 
-message StdioMcpConfig {
-  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
-  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-
-  message Args {
-    repeated string items = 1;
-  }
-
-  message EnvDict {
-    map<string, string> items = 1;
-  }
-  string command = 2;
-  optional Args args = 3;
-  optional EnvDict env = 4;
-}
-
-message SseMcpConfig {
-  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
-  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-  string url = 2;
-}
-
-message McpServerMetadata {
-  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
-  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-
-  message Config {
-    oneof config {
-      SseMcpConfig sse_mcp_config = 1;
-      StdioMcpConfig stdio_mcp_config = 2;
-    }
-  }
-  string server_id = 2;
-  string name = 3;
-  McpServerType type = 4;
-  Config config = 5;
-}
-
-message EnabledMcpServersWithMetadata {
+message MoonshineDownloadedModels {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
 
   message Items {
-    repeated McpServerMetadata items = 1;
+    repeated string items = 1;
   }
   optional Items items = 2;
+}
+
+message ElevenLabsVoiceEntry {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string id = 2;
+  string label = 3;
+}
+
+message MistralVoiceEntry {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string id = 2;
+  string label = 3;
 }
 
 message AssistantTriggerSource {
@@ -1735,6 +1751,7 @@ message WakePhraseTriggerSource {
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
   string phrase = 2;
   optional string detector = 3;
+  optional WakeMode mode = 4;
 }
 
 message KeypadTriggerSource {
@@ -1794,6 +1811,13 @@ message ExternalStopReason {
 message StopTalkingPhraseStopReason {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  optional string phrase = 2;
+  optional string detector = 3;
+}
+
+message BotStartedSpeakingStopReason {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
 }
 
 message AssistantTriggerPolicyMatcher {
@@ -1804,7 +1828,8 @@ message AssistantTriggerPolicyMatcher {
 message WakePhraseMatcher {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-  string phrase = 2;
+  optional string phrase = 2;
+  optional WakeMode mode = 3;
 }
 
 message KeypadMatcher {
@@ -1834,7 +1859,7 @@ message AssistantTriggerPolicy {
   }
   optional float silence_timeout_seconds = 2;
   optional EndOfTurnPhrases end_of_turn_phrases = 3;
-  optional bool requires_phrase_for_stop = 4;
+  optional AssistantTurnCompletionMode completion_mode = 4;
 }
 
 message AssistantTriggerPolicyEntry {
@@ -1853,6 +1878,12 @@ message AssistantSetIsActiveAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
   bool is_active = 2;
+}
+
+message AssistantSetConversationEndPhrasesAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  repeated string phrases = 2;
 }
 
 message AssistantSetSelectedSTTAction {
@@ -1884,6 +1915,38 @@ message AssistantSetSelectedModelAction {
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
   string model = 2;
   optional AssistantLLMName llm_name = 3;
+}
+
+message AssistantSetSelectedVoiceAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  AssistantTTSName tts_name = 2;
+  string voice_id = 3;
+}
+
+message AssistantAddElevenLabsVoiceAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string voice_id = 2;
+  optional string name = 3;
+}
+
+message AssistantDeleteElevenLabsVoiceAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string voice_id = 2;
+}
+
+message AssistantSetElevenLabsAvailableVoicesAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  repeated ElevenLabsVoiceEntry voices = 2;
+}
+
+message AssistantSetMistralAvailableVoicesAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  repeated MistralVoiceEntry voices = 2;
 }
 
 message AssistantDownloadOllamaModelAction {
@@ -1964,6 +2027,65 @@ message AssistantSetVoskDownloadedModelsAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
   repeated string models = 2;
+}
+
+message AssistantSetSelectedMoonshineModelAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string model_id = 2;
+}
+
+message AssistantDownloadMoonshineModelAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string model_id = 2;
+}
+
+message AssistantDeleteMoonshineModelAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string model_id = 2;
+}
+
+message AssistantAddMoonshineDownloadedModelAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string model_id = 2;
+}
+
+message AssistantRemoveMoonshineDownloadedModelAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string model_id = 2;
+}
+
+message AssistantSetMoonshineDownloadingAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string model_id = 2;
+}
+
+message AssistantDeleteOllamaModelAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string model = 2;
+}
+
+message AssistantDeletePiperVoiceAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string voice_id = 2;
+}
+
+message AssistantDeleteKokoroAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+}
+
+message AssistantDeleteVoskModelAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string model_id = 2;
 }
 
 message AssistanceFrame {
@@ -2077,48 +2199,11 @@ message AssistantSelectGenericLLMProviderAction {
   string provider_id = 2;
 }
 
-message AssistantAddMcpServerAction {
-  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
-  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-
-  message Config {
-    oneof config {
-      SseMcpConfig sse_mcp_config = 1;
-      StdioMcpConfig stdio_mcp_config = 2;
-    }
-  }
-  string name = 2;
-  McpServerType type = 3;
-  Config config = 4;
-}
-
-message AssistantToggleMcpServerAction {
-  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
-  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-  string server_id = 2;
-}
-
-message AssistantDeleteMcpServerAction {
-  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
-  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-  string server_id = 2;
-}
-
-message AssistantSyncMcpServersAction {
-  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
-  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-}
-
-message AssistantSetMcpServersAction {
-  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
-  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-  repeated McpServerMetadata servers = 2;
-  repeated string enabled_servers = 3;
-}
-
 message AssistantStopTalkingAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  optional string phrase = 2;
+  optional string detector = 3;
 }
 
 message AssistantTranscribeAction {
@@ -2137,6 +2222,7 @@ message AssistantSynthesizeAction {
   string text = 2;
   string session_id = 3;
   optional AssistantTTSName tts_provider = 4;
+  optional bool play_locally = 5;
 }
 
 message AssistantCompleteAction {
@@ -2164,11 +2250,25 @@ message AssistantRunPipelineAction {
   optional string llm_model = 11;
   optional string system_prompt = 12;
   optional bool enable_tools = 13;
+  optional bool play_locally = 14;
+}
+
+message AssistantCancelRequestAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string session_id = 2;
 }
 
 message AssistantEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+}
+
+message AssistantRequestMicStreamEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string audio_source = 2;
+  bool is_active = 3;
 }
 
 message AssistantStopTalkingEvent {
@@ -2199,6 +2299,13 @@ message AssistantModelChangedEvent {
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
   AssistantLLMName llm_name = 2;
   string model = 3;
+}
+
+message AssistantVoiceChangedEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  AssistantTTSName tts_name = 2;
+  string voice_id = 3;
 }
 
 message AssistantGenericLLMProviderChangedEvent {
@@ -2245,36 +2352,39 @@ message AssistantDownloadVoskModelEvent {
   string model_id = 2;
 }
 
-message AssistantAddMcpServerEvent {
+message AssistantDownloadMoonshineModelEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-
-  message Config {
-    oneof config {
-      SseMcpConfig sse_mcp_config = 1;
-      StdioMcpConfig stdio_mcp_config = 2;
-    }
-  }
-  string name = 2;
-  McpServerType type = 3;
-  Config config = 4;
+  string model_id = 2;
 }
 
-message AssistantDeleteMcpServerEvent {
+message AssistantDeleteMoonshineModelEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-  string server_id = 2;
+  string model_id = 2;
 }
 
-message AssistantToggleMcpServerEvent {
+message AssistantDeleteOllamaModelEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
-  string server_id = 2;
+  string model = 2;
 }
 
-message AssistantSyncMcpServersEvent {
+message AssistantDeletePiperVoiceEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string voice_id = 2;
+}
+
+message AssistantDeleteKokoroEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+}
+
+message AssistantDeleteVoskModelEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string model_id = 2;
 }
 
 message AssistantRunPipelineEvent {
@@ -2293,8 +2403,17 @@ message AssistantRunPipelineEvent {
   optional string system_prompt = 12;
   bool enable_tools = 13;
   optional string vosk_model_id = 14;
-  optional string piper_voice_id = 15;
-  optional string kokoro_voice_id = 16;
+  optional string moonshine_model_id = 15;
+  optional string piper_voice_id = 16;
+  optional string kokoro_voice_id = 17;
+  optional string tts_voice_id = 18;
+  optional bool play_locally = 19;
+}
+
+message AssistantCancelRequestEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.assistant";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_assistant = 1000;
+  string session_id = 2;
 }
 
 message AssistantState {
@@ -2322,6 +2441,22 @@ message AssistantState {
   message OllamaThinkingEnabledDict {
     map<string, bool> items = 1;
   }
+
+  message SelectedVoicesDict {
+    map<string, string> items = 1;
+  }
+  message ElevenlabsVoices {
+    repeated ElevenLabsVoiceEntry items = 1;
+  }
+
+  message ElevenlabsAvailableVoices {
+    repeated ElevenLabsVoiceEntry items = 1;
+  }
+
+  message MistralAvailableVoices {
+    repeated MistralVoiceEntry items = 1;
+  }
+
   message PiperDownloadedVoices {
     repeated string items = 1;
   }
@@ -2330,10 +2465,7 @@ message AssistantState {
     repeated string items = 1;
   }
 
-  message McpServersDict {
-    map<string, McpServerMetadata> items = 1;
-  }
-  message EnabledMcpServers {
+  message MoonshineDownloadedModels {
     repeated string items = 1;
   }
 
@@ -2356,22 +2488,27 @@ message AssistantState {
   optional bool ollama_downloaded_models_refreshed = 12;
   optional OllamaThinkingEnabledDict ollama_thinking_enabled = 13;
   optional AssistantTTSName selected_tts = 14;
-  optional string selected_piper_voice = 15;
-  optional PiperDownloadedVoices piper_downloaded_voices = 16;
-  optional string selected_kokoro_voice = 17;
-  optional bool kokoro_is_downloaded = 18;
-  optional string selected_vosk_model = 19;
-  optional VoskDownloadedModels vosk_downloaded_models = 20;
-  optional AssistantImageGeneratorName selected_image_generator = 21;
-  optional McpServersDict mcp_servers = 22;
-  optional EnabledMcpServers enabled_mcp_servers = 23;
-  optional EnabledMcpServersWithMetadata enabled_mcp_servers_with_metadata = 24;
-  optional ProviderSetupStatusDict provider_setup_status = 25;
-  optional AssistantTriggerSourceUnion active_source = 26;
-  optional AssistantTriggerPolicy active_policy = 27;
-  optional string active_audio_source = 28;
-  optional AssistantStopReasonUnion last_stop_reason = 29;
-  optional Policies policies = 30;
+  optional SelectedVoicesDict selected_voices = 15;
+  optional ElevenlabsVoices elevenlabs_voices = 16;
+  optional ElevenlabsAvailableVoices elevenlabs_available_voices = 17;
+  optional MistralAvailableVoices mistral_available_voices = 18;
+  optional string selected_piper_voice = 19;
+  optional PiperDownloadedVoices piper_downloaded_voices = 20;
+  optional string selected_kokoro_voice = 21;
+  optional bool kokoro_is_downloaded = 22;
+  optional string selected_vosk_model = 23;
+  optional VoskDownloadedModels vosk_downloaded_models = 24;
+  optional string selected_moonshine_model = 25;
+  optional MoonshineDownloadedModels moonshine_downloaded_models = 26;
+  optional MoonshineDownloadedModels moonshine_downloaded_models_wrapper = 27;
+  optional string moonshine_downloading_model = 28;
+  optional AssistantImageGeneratorName selected_image_generator = 29;
+  optional ProviderSetupStatusDict provider_setup_status = 30;
+  optional AssistantTriggerSourceUnion active_source = 31;
+  optional AssistantTriggerPolicy active_policy = 32;
+  optional string active_audio_source = 33;
+  optional AssistantStopReasonUnion last_stop_reason = 34;
+  optional Policies policies = 35;
 }
 
 message AssistantTriggerSourceUnion {
@@ -2386,11 +2523,12 @@ message AssistantTriggerSourceUnion {
 
 message AssistantStopReasonUnion {
   oneof assistant_stop_reason_union {
-    EndOfTurnPhraseStopReason end_of_turn_phrase_stop_reason = 1;
-    ExternalStopReason external_stop_reason = 2;
-    SilenceTimeoutStopReason silence_timeout_stop_reason = 3;
-    StopTalkingPhraseStopReason stop_talking_phrase_stop_reason = 4;
-    UserStopReason user_stop_reason = 5;
+    BotStartedSpeakingStopReason bot_started_speaking_stop_reason = 1;
+    EndOfTurnPhraseStopReason end_of_turn_phrase_stop_reason = 2;
+    ExternalStopReason external_stop_reason = 3;
+    SilenceTimeoutStopReason silence_timeout_stop_reason = 4;
+    StopTalkingPhraseStopReason stop_talking_phrase_stop_reason = 5;
+    UserStopReason user_stop_reason = 6;
   }
 }
 
@@ -2452,6 +2590,12 @@ message AudioSetMuteStatusAction {
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_audio = 1000;
   bool is_mute = 2;
   AudioDevice device = 3;
+}
+
+message AudioReportRemoteCaptureAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.audio";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_audio = 1000;
+  bool is_active = 2;
 }
 
 message AudioToggleMuteStatusAction {
@@ -2592,15 +2736,9 @@ message AudioState {
   optional bool is_playback_mute = 3;
   optional float capture_volume = 4;
   optional bool is_capture_mute = 5;
-  optional bool is_recording = 6;
-  optional AudioSample recording = 7;
-}
-
-enum CameraType {
-  CAMERA_TYPE_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_CAMERA_UNSPECIFIED = 0;
-  CAMERA_TYPE_DEFAULT = 1;
-  CAMERA_TYPE_AUTOFOCUS = 2;
-  CAMERA_TYPE_FIXED_FOCUS = 3;
+  optional bool is_remote_capture_active = 6;
+  optional bool is_recording = 7;
+  optional AudioSample recording = 8;
 }
 
 enum CameraSourceKind {
@@ -2763,7 +2901,6 @@ message CameraState {
   optional string selected_source_id = 3;
   optional AvailableCameras available_cameras = 4;
   optional PendingRemoteRegistrations pending_remote_registrations = 5;
-  optional CameraType camera_type = 6;
 }
 
 enum ChatRole {
@@ -3069,6 +3206,19 @@ message DockerImageSetExposeToLanAction {
   bool expose_to_lan = 3;
 }
 
+message DockerSetZigbeeIntentAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.docker";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_docker = 1000;
+  bool enabled = 2;
+  optional string adapter_by_id = 3;
+}
+
+message DockerSetHostNetworkAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.docker";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_docker = 1000;
+  bool enabled = 2;
+}
+
 message DockerImageAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.docker";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_docker = 1000;
@@ -3172,6 +3322,9 @@ message DockerServiceState {
   optional DockerStatus status = 2;
   optional UsernamesDict usernames = 3;
   optional ExposeToLanDict expose_to_lan = 4;
+  optional bool zigbee_enabled = 5;
+  optional string zigbee_adapter_by_id = 6;
+  optional bool host_network_enabled = 7;
 }
 
 message DockerImageEvent {
@@ -3740,6 +3893,117 @@ message KeypadState {
   optional bool is_display_blanked = 7;
 }
 
+enum KioskPortRole {
+  KIOSK_PORT_ROLE_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_KIOSK_UNSPECIFIED = 0;
+  KIOSK_PORT_ROLE_BROWSER = 1;
+  KIOSK_PORT_ROLE_TERMINAL = 2;
+  KIOSK_PORT_ROLE_OFF = 3;
+}
+
+message KioskDashboard {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+  string id = 2;
+  string name = 3;
+  string url = 4;
+}
+
+message KioskPortSelection {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+  optional KioskPortRole role = 2;
+  optional string dashboard_id = 3;
+}
+
+message KioskPortSelections {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+  optional KioskPortSelection hdmi_a_1 = 2;
+  optional KioskPortSelection hdmi_a_2 = 3;
+}
+
+message KioskAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+}
+
+message KioskEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+}
+
+message KioskUpdateStateAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+
+  message ConnectedPorts {
+    repeated string items = 1;
+  }
+  optional bool is_active = 2;
+  optional bool is_enabled = 3;
+  optional bool is_installed = 4;
+  optional bool is_installing = 5;
+  optional ConnectedPorts connected_ports = 6;
+}
+
+message KioskClearEnabledStateAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+}
+
+message KioskSetPortSelectionAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+  string port = 2;
+  KioskPortRole role = 3;
+  optional string dashboard_id = 4;
+}
+
+message KioskAddDashboardAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+  string id = 2;
+  string name = 3;
+  string url = 4;
+}
+
+message KioskDeleteDashboardAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+  string dashboard_id = 2;
+}
+
+message KioskRotatePortAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+  string port = 2;
+}
+
+message KioskApplyConfigEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+}
+
+message KioskState {
+  option (package_info.v1.package_name) = "ubo_app.store.services.kiosk";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_kiosk = 1000;
+
+  message Dashboards {
+    repeated KioskDashboard items = 1;
+  }
+
+  message ConnectedPorts {
+    repeated string items = 1;
+  }
+  optional bool is_active = 2;
+  optional bool is_enabled = 3;
+  optional bool is_installed = 4;
+  optional bool is_installing = 5;
+  optional KioskPortSelections port_selections = 6;
+  optional Dashboards dashboards = 7;
+  optional ConnectedPorts connected_ports = 8;
+}
+
 message LightDMAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.lightdm";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_lightdm = 1000;
@@ -3780,6 +4044,33 @@ enum LanguageCode {
   LANGUAGE_CODE_ZH = 8;
 }
 
+enum LocationSource {
+  LOCATION_SOURCE_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_LOCALIZATION_UNSPECIFIED = 0;
+  LOCATION_SOURCE_IP = 1;
+  LOCATION_SOURCE_MANUAL = 2;
+}
+
+message LocationInfo {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+  float latitude = 2;
+  float longitude = 3;
+  optional string city = 4;
+  optional string country = 5;
+  optional string country_code = 6;
+  optional string timezone = 7;
+}
+
+message WeatherCondition {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+  string symbol_code = 2;
+  float temperature_celsius = 3;
+  optional float wind_speed_mps = 4;
+  optional float fetched_at = 5;
+  optional float expires_at = 6;
+}
+
 message LocalizationAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.localization";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
@@ -3796,16 +4087,432 @@ message LocalizationSetLanguageAction {
   LanguageCode language = 2;
 }
 
+message LocalizationSetLocationAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+  LocationInfo location = 2;
+  LocationSource source = 3;
+  optional string public_ip = 4;
+}
+
+message LocalizationResetLocationAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+}
+
+message LocalizationUpdateWeatherAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+  WeatherCondition weather = 2;
+}
+
+message LocalizationRefreshWeatherAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+}
+
+message LocalizationSpeakTimeAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+}
+
+message LocalizationSpeakDateAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+}
+
+message LocalizationSpeakWeatherAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+}
+
 message LocalizationLanguageChangedEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.localization";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
   LanguageCode language = 2;
 }
 
+message LocalizationLocationChangedEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+  LocationInfo location = 2;
+  LocationSource source = 3;
+}
+
+message LocalizationLocationResetEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+}
+
+message LocalizationWeatherRefreshRequestedEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+  LocationInfo location = 2;
+}
+
+message LocalizationSpeakTimeEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+  optional string timezone = 2;
+}
+
+message LocalizationSpeakDateEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+  optional string timezone = 2;
+}
+
+message LocalizationSpeakWeatherEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.localization";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
+  optional WeatherCondition weather = 2;
+  optional LocationInfo location = 3;
+}
+
 message LocalizationState {
   option (package_info.v1.package_name) = "ubo_app.store.services.localization";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_localization = 1000;
   optional LanguageCode language = 2;
+  optional LocationInfo location = 3;
+  optional LocationSource location_source = 4;
+  optional string public_ip = 5;
+  optional WeatherCondition weather = 6;
+}
+
+enum McpServerType {
+  MCP_SERVER_TYPE_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_MCP_UNSPECIFIED = 0;
+  MCP_SERVER_TYPE_STDIO = 1;
+  MCP_SERVER_TYPE_SSE = 2;
+}
+
+enum McpServerStatus {
+  MCP_SERVER_STATUS_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_MCP_UNSPECIFIED = 0;
+  MCP_SERVER_STATUS_UNKNOWN = 1;
+  MCP_SERVER_STATUS_CHECKING = 2;
+  MCP_SERVER_STATUS_HEALTHY = 3;
+  MCP_SERVER_STATUS_FAILED = 4;
+}
+
+message McpServerHealth {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+  optional McpServerStatus status = 2;
+  optional string message = 3;
+}
+
+message StdioMcpConfig {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+
+  message Args {
+    repeated string items = 1;
+  }
+
+  message EnvDict {
+    map<string, string> items = 1;
+  }
+  string command = 2;
+  optional Args args = 3;
+  optional EnvDict env = 4;
+}
+
+message SseMcpConfig {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+  string url = 2;
+}
+
+message McpServerMetadata {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+
+  message Config {
+    oneof config {
+      SseMcpConfig sse_mcp_config = 1;
+      StdioMcpConfig stdio_mcp_config = 2;
+    }
+  }
+  string server_id = 2;
+  string name = 3;
+  McpServerType type = 4;
+  Config config = 5;
+}
+
+message EnabledMcpServersWithMetadata {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+
+  message Items {
+    repeated McpServerMetadata items = 1;
+  }
+  optional Items items = 2;
+}
+
+message McpAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+}
+
+message McpAddServerAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+
+  message Config {
+    oneof config {
+      SseMcpConfig sse_mcp_config = 1;
+      StdioMcpConfig stdio_mcp_config = 2;
+    }
+  }
+  string name = 2;
+  McpServerType type = 3;
+  Config config = 4;
+}
+
+message McpToggleServerAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+  string server_id = 2;
+}
+
+message McpSetServerStatusAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+  string server_id = 2;
+  McpServerStatus status = 3;
+  optional string message = 4;
+}
+
+message McpDeleteServerAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+  string server_id = 2;
+}
+
+message McpSyncServersAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+}
+
+message McpSetServersAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+  repeated McpServerMetadata servers = 2;
+  repeated string enabled_servers = 3;
+}
+
+message McpEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+}
+
+message McpAddServerEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+
+  message Config {
+    oneof config {
+      SseMcpConfig sse_mcp_config = 1;
+      StdioMcpConfig stdio_mcp_config = 2;
+    }
+  }
+  string name = 2;
+  McpServerType type = 3;
+  Config config = 4;
+}
+
+message McpDeleteServerEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+  string server_id = 2;
+}
+
+message McpToggleServerEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+  string server_id = 2;
+}
+
+message McpSyncServersEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+}
+
+message McpState {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mcp";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mcp = 1000;
+
+  message McpServersDict {
+    map<string, McpServerMetadata> items = 1;
+  }
+  message EnabledMcpServers {
+    repeated string items = 1;
+  }
+
+  message ServerStatusesDict {
+    map<string, McpServerHealth> items = 1;
+  }
+  optional McpServersDict mcp_servers = 2;
+  optional EnabledMcpServers enabled_mcp_servers = 3;
+  optional EnabledMcpServersWithMetadata enabled_mcp_servers_with_metadata = 4;
+  optional ServerStatusesDict server_statuses = 5;
+}
+
+enum MqttConnectionStatus {
+  MQTT_CONNECTION_STATUS_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_MQTT_UNSPECIFIED = 0;
+  MQTT_CONNECTION_STATUS_DISABLED = 1;
+  MQTT_CONNECTION_STATUS_CONNECTING = 2;
+  MQTT_CONNECTION_STATUS_CONNECTED = 3;
+  MQTT_CONNECTION_STATUS_ERROR = 4;
+}
+
+enum MqttBrokerSource {
+  MQTT_BROKER_SOURCE_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_MQTT_UNSPECIFIED = 0;
+  MQTT_BROKER_SOURCE_BUNDLED = 1;
+  MQTT_BROKER_SOURCE_EXTERNAL = 2;
+}
+
+message MqttAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+}
+
+message MqttEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+}
+
+message MqttBrokerConfig {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+  optional MqttBrokerSource source = 2;
+  optional string host = 3;
+  optional int64 port = 4;
+  optional string username = 5;
+  optional bool has_password = 6;
+  optional bool use_tls = 7;
+  optional string ca_cert_path = 8;
+}
+
+message MqttComponent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+
+  message EventTypes {
+    repeated string items = 1;
+  }
+
+  message Options {
+    repeated string items = 1;
+  }
+  string component_id = 2;
+  string platform = 3;
+  string name = 4;
+  optional string state_channel = 5;
+  optional string value_template = 6;
+  optional string command_channel = 7;
+  optional string payload_press = 8;
+  optional string device_class = 9;
+  optional string unit_of_measurement = 10;
+  optional string state_class = 11;
+  optional int64 suggested_display_precision = 12;
+  optional EventTypes event_types = 13;
+  optional Options options = 14;
+  optional int64 expire_after = 15;
+  optional string command_template = 16;
+  optional float min_value = 17;
+  optional float max_value = 18;
+  optional float step = 19;
+  optional string mode = 20;
+  optional bool retain = 21;
+  optional int64 qos = 22;
+}
+
+message MqttSetStatusAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+  MqttConnectionStatus status = 2;
+  optional string error = 3;
+}
+
+message MqttSetBrokerAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+  MqttBrokerConfig broker = 2;
+}
+
+message MqttSetEnabledAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+  bool is_enabled = 2;
+}
+
+message MqttSetBundledExposeToLanAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+  bool expose_to_lan = 2;
+}
+
+message MqttBundledCredentialsChangedAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+}
+
+message MqttSetAllowRemoteControlAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+  bool allow_remote_control = 2;
+}
+
+message MqttSetPublishedComponentsAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+
+  map<string, string> published_components = 2;
+}
+
+message MqttPublishAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+  string channel = 2;
+  string payload = 3;
+  optional bool retain = 4;
+  optional int64 qos = 5;
+}
+
+message MqttPublishEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+  string channel = 2;
+  string payload = 3;
+  optional bool retain = 4;
+  optional int64 qos = 5;
+}
+
+message MqttRequestAnnounceAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+}
+
+message MqttAnnounceRequestedEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+}
+
+message MqttState {
+  option (package_info.v1.package_name) = "ubo_app.store.services.mqtt";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_mqtt = 1000;
+
+  message PublishedComponentsDict {
+    map<string, string> items = 1;
+  }
+  optional MqttConnectionStatus status = 2;
+  optional MqttBrokerConfig broker = 3;
+  optional bool is_enabled = 4;
+  optional bool allow_remote_control = 5;
+  optional bool bundled_expose_to_lan = 6;
+  optional int64 bundled_credentials_revision = 7;
+  optional string last_error = 8;
+  optional PublishedComponentsDict published_components = 9;
 }
 
 enum Importance {
@@ -4184,7 +4891,20 @@ enum Sensor {
   SENSOR_LIGHT = 2;
 }
 
+enum SensorStatus {
+  SENSOR_STATUS_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_SENSORS_UNSPECIFIED = 0;
+  SENSOR_STATUS_ACTIVE = 1;
+  SENSOR_STATUS_ERROR = 2;
+  SENSOR_STATUS_UNSUPPORTED = 3;
+  SENSOR_STATUS_AMBIGUOUS = 4;
+}
+
 message SensorsAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.sensors";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_sensors = 1000;
+}
+
+message SensorsEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.sensors";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_sensors = 1000;
 }
@@ -4197,6 +4917,57 @@ message SensorsReportReadingAction {
   float timestamp = 4;
 }
 
+message SensorEntityReading {
+  option (package_info.v1.package_name) = "ubo_app.store.services.sensors";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_sensors = 1000;
+  string key = 2;
+  optional float value = 3;
+}
+
+message SensorDeviceState {
+  option (package_info.v1.package_name) = "ubo_app.store.services.sensors";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_sensors = 1000;
+
+  message Entities {
+    repeated SensorEntityReading items = 1;
+  }
+  string id = 2;
+  string definition_id = 3;
+  string label = 4;
+  int64 address = 5;
+  bool is_builtin = 6;
+  SensorStatus status = 7;
+  optional Entities entities = 8;
+}
+
+message SensorsScanAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.sensors";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_sensors = 1000;
+}
+
+message SensorsScanEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.sensors";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_sensors = 1000;
+}
+
+message SensorsScanCompletedAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.sensors";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_sensors = 1000;
+
+  message Devices {
+    repeated SensorDeviceState items = 1;
+  }
+  optional Devices devices = 2;
+}
+
+message SensorsReportDeviceReadingsAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.sensors";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_sensors = 1000;
+  string device_id = 2;
+  repeated SensorEntityReading entities = 3;
+  float timestamp = 4;
+}
+
 message SensorState {
   option (package_info.v1.package_name) = "ubo_app.store.services.sensors";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_sensors = 1000;
@@ -4206,8 +4977,37 @@ message SensorState {
 message SensorsState {
   option (package_info.v1.package_name) = "ubo_app.store.services.sensors";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_sensors = 1000;
+
+  message DevicesDict {
+    map<string, SensorDeviceState> items = 1;
+  }
   optional SensorState temperature = 2;
   optional SensorState light = 3;
+  optional DevicesDict devices = 4;
+  optional bool is_scanning = 5;
+}
+
+enum WakeMode {
+  WAKE_MODE_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_SPEECH_RECOGNITION_UNSPECIFIED = 0;
+  WAKE_MODE_INTENTS = 1;
+  WAKE_MODE_QUICK_CHAT = 2;
+  WAKE_MODE_CONVERSATION = 3;
+  WAKE_MODE_STOP_TALKING = 4;
+  WAKE_MODE_HOME_ASSISTANT = 5;
+}
+
+enum WakeWordEngineName {
+  WAKE_WORD_ENGINE_NAME_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_SPEECH_RECOGNITION_UNSPECIFIED = 0;
+  WAKE_WORD_ENGINE_NAME_VOSK = 1;
+  WAKE_WORD_ENGINE_NAME_OPENWAKEWORD = 2;
+}
+
+enum WakeWordModelStatus {
+  WAKE_WORD_MODEL_STATUS_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_SPEECH_RECOGNITION_UNSPECIFIED = 0;
+  WAKE_WORD_MODEL_STATUS_NOT_AVAILABLE = 1;
+  WAKE_WORD_MODEL_STATUS_DOWNLOADING = 2;
+  WAKE_WORD_MODEL_STATUS_AVAILABLE = 3;
+  WAKE_WORD_MODEL_STATUS_ERROR = 4;
 }
 
 enum SpeechRecognitionStatus {
@@ -4220,7 +5020,13 @@ enum SpeechRecognitionStatus {
 enum SpeechRecognitionEngineName {
   SPEECH_RECOGNITION_ENGINE_NAME_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_SPEECH_RECOGNITION_UNSPECIFIED = 0;
   SPEECH_RECOGNITION_ENGINE_NAME_VOSK = 1;
-  SPEECH_RECOGNITION_ENGINE_NAME_GOOGLE = 2;
+}
+
+message WakeWordModelStatusEntry {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  WakeWordEngineName engine = 2;
+  WakeWordModelStatus status = 3;
 }
 
 message SpeechRecognitionAction {
@@ -4228,22 +5034,69 @@ message SpeechRecognitionAction {
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
 }
 
-message SpeechRecognitionSetSelectedEngineAction {
+message WakeEngineSetEnabledAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
-  optional SpeechRecognitionEngineName engine_name = 2;
+  WakeWordEngineName engine = 2;
+  bool enabled = 3;
 }
 
-message SpeechRecognitionSetIsIntentsActiveAction {
+message WakeTriggerAddAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
-  bool is_active = 2;
+  WakeWordEngineName engine = 2;
+  string id = 3;
+  string label = 4;
+  WakeMode mode = 5;
+  string value = 6;
+  optional float sensitivity = 7;
 }
 
-message SpeechRecognitionSetIsAssistantActiveAction {
+message WakeTriggerRemoveAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
-  bool is_active = 2;
+  WakeWordEngineName engine = 2;
+  string id = 3;
+}
+
+message SpeechRecognitionSetAssistantEnabledAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  bool enabled = 2;
+}
+
+message SpeechRecognitionSetWakeModeEnabledAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  WakeMode mode = 2;
+  bool enabled = 3;
+}
+
+message WakeWordDownloadModelsAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  WakeWordEngineName engine_name = 2;
+}
+
+message WakeWordDeleteModelAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  WakeWordEngineName engine = 2;
+  string model_id = 3;
+}
+
+message WakeWordSetAvailableModelsAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  WakeWordEngineName engine = 2;
+  repeated string models = 3;
+}
+
+message WakeWordSetModelsStatusAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  WakeWordEngineName engine_name = 2;
+  WakeWordModelStatus status = 3;
 }
 
 message SpeechRecognitionAddCommandAction {
@@ -4270,6 +5123,18 @@ message SpeechRecognitionRemoveCommandAction {
   string id = 2;
 }
 
+message SpeechRecognitionRunCommandAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  string command_id = 2;
+}
+
+message SpeechRecognitionSetConversationEndPhrasesAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  repeated string phrases = 2;
+}
+
 message SpeechRecognitionIntent {
   option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
@@ -4279,10 +5144,45 @@ message SpeechRecognitionIntent {
   repeated string action_keys = 5;
 }
 
+message SpeechRecognitionCommandDescriptor {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  string id = 2;
+  string label = 3;
+  repeated string sample_phrases = 4;
+}
+
+message SpeechRecognitionCommandsCatalog {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+
+  message Items {
+    repeated SpeechRecognitionCommandDescriptor items = 1;
+  }
+  optional Items items = 2;
+}
+
 message SpeechRecognitionReportWakeWordDetectionAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
-  string wake_word = 2;
+  string engine_name = 2;
+  string trigger_id = 3;
+  optional string phrase = 4;
+}
+
+message SpeechRecognitionTriggerModeAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  WakeMode mode = 2;
+  optional string phrase = 3;
+  optional string detector = 4;
+}
+
+message SpeechRecognitionSetAssistantListeningAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  bool active = 2;
+  optional string audio_source = 3;
 }
 
 message SpeechRecognitionReportIntentDetectionAction {
@@ -4310,6 +5210,19 @@ message SpeechRecognitionEvent {
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
 }
 
+message WakeWordDownloadModelsEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  WakeWordEngineName engine_name = 2;
+}
+
+message WakeWordDeleteModelEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  WakeWordEngineName engine = 2;
+  string model_id = 3;
+}
+
 message SpeechRecognitionReportTextEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
@@ -4324,6 +5237,24 @@ message SpeechRecognitionBoundActionTriggeredEvent {
   string phrase = 3;
 }
 
+message WakeWordTrigger {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  string id = 2;
+  string label = 3;
+  WakeMode mode = 4;
+  string value = 5;
+  optional float sensitivity = 6;
+}
+
+message WakeWordEngineConfig {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
+  WakeWordEngineName engine = 2;
+  bool enabled = 3;
+  repeated WakeWordTrigger triggers = 4;
+}
+
 message SpeechRecognitionState {
   option (package_info.v1.package_name) = "ubo_app.store.services.speech_recognition";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_recognition = 1000;
@@ -4331,11 +5262,40 @@ message SpeechRecognitionState {
   message Intents {
     repeated SpeechRecognitionIntent items = 1;
   }
-  optional SpeechRecognitionEngineName selected_engine = 2;
-  optional Intents intents = 3;
-  optional bool is_intents_active = 4;
-  optional bool is_assistant_active = 5;
-  optional SpeechRecognitionStatus status = 6;
+
+  message WakeEngines {
+    repeated WakeWordEngineConfig items = 1;
+  }
+
+  message EnabledWakeModes {
+    repeated WakeMode items = 1;
+  }
+
+  message OpenwakewordModels {
+    repeated string items = 1;
+  }
+
+  message ConversationEndPhrases {
+    repeated string items = 1;
+  }
+
+  message WakeWordModelsStatus {
+    repeated WakeWordModelStatusEntry items = 1;
+  }
+
+  message SeededDefaultIds {
+    repeated string items = 1;
+  }
+  optional Intents intents = 2;
+  optional WakeEngines wake_engines = 3;
+  optional EnabledWakeModes enabled_wake_modes = 4;
+  optional OpenwakewordModels openwakeword_models = 5;
+  optional ConversationEndPhrases conversation_end_phrases = 6;
+  optional SpeechRecognitionStatus status = 7;
+  optional string assistant_session_audio_source = 8;
+  optional SpeechRecognitionCommandsCatalog commands_catalog = 9;
+  optional WakeWordModelsStatus wake_word_models_status = 10;
+  optional SeededDefaultIds seeded_default_ids = 11;
 }
 
 enum SpeechSynthesisEngineName {
@@ -4354,18 +5314,6 @@ message SpeechSynthesisEvent {
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_synthesis = 1000;
 }
 
-message SpeechSynthesisUpdateAccessKeyStatus {
-  option (package_info.v1.package_name) = "ubo_app.store.services.speech_synthesis";
-  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_synthesis = 1000;
-  bool is_access_key_set = 2;
-}
-
-message SpeechSynthesisSetSelectedEngineAction {
-  option (package_info.v1.package_name) = "ubo_app.store.services.speech_synthesis";
-  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_synthesis = 1000;
-  SpeechSynthesisEngineName engine_name = 2;
-}
-
 message ReadableInformation {
   option (package_info.v1.package_name) = "ubo_app.store.services.speech_synthesis";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_synthesis = 1000;
@@ -4382,18 +5330,29 @@ message SpeechSynthesisReadTextAction {
   optional SpeechSynthesisEngineName engine = 4;
 }
 
+message SpeechSynthesisSetIsEnabledAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_synthesis";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_synthesis = 1000;
+  bool is_enabled = 2;
+}
+
+message SpeechSynthesisSetPreferLocalAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.speech_synthesis";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_synthesis = 1000;
+  bool is_enabled = 2;
+}
+
 message SpeechSynthesisSynthesizeTextEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.speech_synthesis";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_synthesis = 1000;
   ReadableInformation information = 2;
-  optional float speech_rate = 3;
 }
 
 message SpeechSynthesisState {
   option (package_info.v1.package_name) = "ubo_app.store.services.speech_synthesis";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_speech_synthesis = 1000;
-  optional bool is_access_key_set = 2;
-  optional SpeechSynthesisEngineName selected_engine = 3;
+  optional bool is_screen_reader_enabled = 2;
+  optional bool is_prefer_local_enabled = 3;
 }
 
 message SSHAction {
@@ -4444,6 +5403,47 @@ message SystemState {
   optional float cpu_percent = 2;
   optional float ram_percent = 3;
   optional string clock = 4;
+}
+
+message TailscaleAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.tailscale";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_tailscale = 1000;
+}
+
+message TailscaleEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.tailscale";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_tailscale = 1000;
+}
+
+message TailscaleStartDownloadingAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.tailscale";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_tailscale = 1000;
+}
+
+message TailscaleDoneDownloadingAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.tailscale";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_tailscale = 1000;
+}
+
+message TailscaleSetPendingAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.tailscale";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_tailscale = 1000;
+}
+
+message TailscaleSetStatusAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.tailscale";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_tailscale = 1000;
+  bool is_installed = 2;
+  optional string backend_state = 3;
+}
+
+message TailscaleState {
+  option (package_info.v1.package_name) = "ubo_app.store.services.tailscale";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_tailscale = 1000;
+  optional bool is_downloading = 2;
+  optional bool is_installed = 3;
+  optional bool is_active = 4;
+  optional string backend_state = 5;
 }
 
 message UsersAction {
@@ -4574,6 +5574,22 @@ message VSCodeState {
   optional VSCodeStatus status = 6;
 }
 
+enum WebUIInputCommand {
+  WEB_UI_INPUT_COMMAND_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_WEB_UI_UNSPECIFIED = 0;
+  WEB_UI_INPUT_COMMAND_UP = 1;
+  WEB_UI_INPUT_COMMAND_DOWN = 2;
+  WEB_UI_INPUT_COMMAND_LEFT = 3;
+  WEB_UI_INPUT_COMMAND_RIGHT = 4;
+  WEB_UI_INPUT_COMMAND_SELECT = 5;
+  WEB_UI_INPUT_COMMAND_BACK = 6;
+  WEB_UI_INPUT_COMMAND_HOME = 7;
+}
+
+message WebUIAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.web_ui";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_web_ui = 1000;
+}
+
 message WebUIEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.web_ui";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_web_ui = 1000;
@@ -4585,9 +5601,16 @@ message WebUIInitializeEvent {
   WebUIInputDescription description = 2;
 }
 
-message WebUIStopEvent {
+message WebUIInputAction {
   option (package_info.v1.package_name) = "ubo_app.store.services.web_ui";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_web_ui = 1000;
+  WebUIInputCommand command = 2;
+}
+
+message WebUIInputEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.web_ui";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_web_ui = 1000;
+  WebUIInputCommand command = 2;
 }
 
 message WebUIState {
@@ -4653,6 +5676,24 @@ message WiFiUpdateRequestAction {
   optional bool reset = 2;
 }
 
+message WiFiStartHotspotAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wifi";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wifi = 1000;
+  optional string mode = 2;
+}
+
+message WiFiStopHotspotAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wifi";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wifi = 1000;
+}
+
+message WiFiSetHotspotRunningAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wifi";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wifi = 1000;
+  bool is_running = 2;
+  optional bool user_enabled = 3;
+}
+
 message WiFiEvent {
   option (package_info.v1.package_name) = "ubo_app.store.services.wifi";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wifi = 1000;
@@ -4668,6 +5709,17 @@ message WiFiUpdateRequestEvent {
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wifi = 1000;
 }
 
+message WiFiStartHotspotEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wifi";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wifi = 1000;
+  optional string mode = 2;
+}
+
+message WiFiStopHotspotEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wifi";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wifi = 1000;
+}
+
 message WiFiState {
   option (package_info.v1.package_name) = "ubo_app.store.services.wifi";
   optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wifi = 1000;
@@ -4679,434 +5731,667 @@ message WiFiState {
   NetState state = 3;
   optional WiFiConnection current_connection = 4;
   optional bool has_visited_onboarding = 5;
+  optional bool is_hotspot_running = 6;
+  optional bool hotspot_user_enabled = 7;
+}
+
+enum WyomingAccessPolicyKind {
+  WYOMING_ACCESS_POLICY_KIND_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_WYOMING_UNSPECIFIED = 0;
+  WYOMING_ACCESS_POLICY_KIND_DOCKER = 1;
+  WYOMING_ACCESS_POLICY_KIND_NETWORK = 2;
+}
+
+enum WyomingSatelliteStatus {
+  WYOMING_SATELLITE_STATUS_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_WYOMING_UNSPECIFIED = 0;
+  WYOMING_SATELLITE_STATUS_STOPPED = 1;
+  WYOMING_SATELLITE_STATUS_LISTENING = 2;
+  WYOMING_SATELLITE_STATUS_CONNECTED = 3;
+  WYOMING_SATELLITE_STATUS_STREAMING = 4;
+  WYOMING_SATELLITE_STATUS_PLAYING = 5;
+  WYOMING_SATELLITE_STATUS_PAUSED = 6;
+}
+
+enum WyomingEnginesStatus {
+  WYOMING_ENGINES_STATUS_UBO_APP_DOT_STORE_DOT_SERVICES_DOT_WYOMING_UNSPECIFIED = 0;
+  WYOMING_ENGINES_STATUS_STOPPED = 1;
+  WYOMING_ENGINES_STATUS_LISTENING = 2;
+  WYOMING_ENGINES_STATUS_BUSY = 3;
+}
+
+message WyomingAccessPolicy {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+  WyomingAccessPolicyKind kind = 2;
+  optional string value = 3;
+}
+
+message WyomingState {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+
+  message AccessPolicies {
+    repeated WyomingAccessPolicy items = 1;
+  }
+  optional bool is_satellite_enabled = 2;
+  optional bool is_engines_enabled = 3;
+  optional AccessPolicies access_policies = 4;
+  optional bool is_zeroconf_enabled = 5;
+  optional WyomingSatelliteStatus satellite_status = 6;
+  optional string satellite_client = 7;
+  optional WyomingEnginesStatus engines_status = 8;
+  optional int64 active_engine_requests = 9;
+}
+
+message WyomingAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+}
+
+message WyomingSetSatelliteEnabledAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+  bool enabled = 2;
+}
+
+message WyomingSetEnginesEnabledAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+  bool enabled = 2;
+}
+
+message WyomingAddAccessPolicyAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+  WyomingAccessPolicyKind kind = 2;
+  optional string value = 3;
+}
+
+message WyomingRemoveAccessPolicyAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+  WyomingAccessPolicyKind kind = 2;
+  optional string value = 3;
+}
+
+message WyomingSetZeroconfEnabledAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+  bool enabled = 2;
+}
+
+message WyomingReportSatelliteStatusAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+  WyomingSatelliteStatus status = 2;
+  optional string client = 3;
+}
+
+message WyomingReportEnginesStatusAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+  optional WyomingEnginesStatus status = 2;
+  optional int64 active_requests = 3;
+}
+
+message WyomingSatelliteWakeAction {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+  optional string phrase = 2;
+  optional string detector = 3;
+}
+
+message WyomingEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+}
+
+message WyomingSatelliteWakeEvent {
+  option (package_info.v1.package_name) = "ubo_app.store.services.wyoming";
+  optional string meta_field_package_name_ubo_app_dot_store_dot_services_dot_wyoming = 1000;
+  optional string phrase = 2;
+  optional string detector = 3;
 }
 
 message Action {
   oneof action {
     AssistantAction assistant_action = 1;
-    AssistantAddGenericLLMProviderAction assistant_add_generic_llm_provider_action = 2;
-    AssistantAddMcpServerAction assistant_add_mcp_server_action = 3;
-    AssistantCompleteAction assistant_complete_action = 4;
-    AssistantDeleteMcpServerAction assistant_delete_mcp_server_action = 5;
-    AssistantDownloadKokoroAction assistant_download_kokoro_action = 6;
-    AssistantDownloadOllamaModelAction assistant_download_ollama_model_action = 7;
-    AssistantDownloadPiperVoiceAction assistant_download_piper_voice_action = 8;
-    AssistantDownloadVoskModelAction assistant_download_vosk_model_action = 9;
-    AssistantRemoveGenericLLMProviderAction assistant_remove_generic_llm_provider_action = 10;
-    AssistantReportAction assistant_report_action = 11;
-    AssistantRunPipelineAction assistant_run_pipeline_action = 12;
-    AssistantSelectGenericLLMProviderAction assistant_select_generic_llm_provider_action = 13;
-    AssistantSetIsActiveAction assistant_set_is_active_action = 14;
-    AssistantSetKokoroDownloadedAction assistant_set_kokoro_downloaded_action = 15;
-    AssistantSetMcpServersAction assistant_set_mcp_servers_action = 16;
-    AssistantSetOllamaDownloadedModelsAction assistant_set_ollama_downloaded_models_action = 17;
-    AssistantSetOllamaModelCapabilitiesAction assistant_set_ollama_model_capabilities_action = 18;
-    AssistantSetOllamaThinkingAction assistant_set_ollama_thinking_action = 19;
-    AssistantSetPiperDownloadedVoicesAction assistant_set_piper_downloaded_voices_action = 20;
-    AssistantSetSelectedImageGeneratorAction assistant_set_selected_image_generator_action = 21;
-    AssistantSetSelectedKokoroVoiceAction assistant_set_selected_kokoro_voice_action = 22;
-    AssistantSetSelectedLLMAction assistant_set_selected_llm_action = 23;
-    AssistantSetSelectedModelAction assistant_set_selected_model_action = 24;
-    AssistantSetSelectedPiperVoiceAction assistant_set_selected_piper_voice_action = 25;
-    AssistantSetSelectedSTTAction assistant_set_selected_stt_action = 26;
-    AssistantSetSelectedTTSAction assistant_set_selected_tts_action = 27;
-    AssistantSetSelectedVoskModelAction assistant_set_selected_vosk_model_action = 28;
-    AssistantSetVoskDownloadedModelsAction assistant_set_vosk_downloaded_models_action = 29;
-    AssistantStartListeningAction assistant_start_listening_action = 30;
-    AssistantStopListeningAction assistant_stop_listening_action = 31;
-    AssistantStopTalkingAction assistant_stop_talking_action = 32;
-    AssistantSyncMcpServersAction assistant_sync_mcp_servers_action = 33;
-    AssistantSynthesizeAction assistant_synthesize_action = 34;
-    AssistantToggleListeningAction assistant_toggle_listening_action = 35;
-    AssistantToggleMcpServerAction assistant_toggle_mcp_server_action = 36;
-    AssistantTranscribeAction assistant_transcribe_action = 37;
-    AssistantUpdateProvidersAction assistant_update_providers_action = 38;
-    AudioAction audio_action = 39;
-    AudioChangeVolumeAction audio_change_volume_action = 40;
-    AudioInstallDriverAction audio_install_driver_action = 41;
-    AudioPlayAudioSampleAction audio_play_audio_sample_action = 42;
-    AudioPlayAudioSequenceAction audio_play_audio_sequence_action = 43;
-    AudioPlayChimeAction audio_play_chime_action = 44;
-    AudioPlayRecordingAction audio_play_recording_action = 45;
-    AudioPlaybackDoneAction audio_playback_done_action = 46;
-    AudioReportSampleAction audio_report_sample_action = 47;
-    AudioSetMuteStatusAction audio_set_mute_status_action = 48;
-    AudioSetVolumeAction audio_set_volume_action = 49;
-    AudioStartRecordingAction audio_start_recording_action = 50;
-    AudioStopPlaybackAction audio_stop_playback_action = 51;
-    AudioStopRecordingAction audio_stop_recording_action = 52;
-    AudioToggleMuteStatusAction audio_toggle_mute_status_action = 53;
-    AudioToggleRecordingAction audio_toggle_recording_action = 54;
-    CameraAction camera_action = 55;
-    CameraDetectAction camera_detect_action = 56;
-    CameraInstallDriverAction camera_install_driver_action = 57;
-    CameraRegisterRemoteAction camera_register_remote_action = 58;
-    CameraReportBarcodeAction camera_report_barcode_action = 59;
-    CameraReportImageAction camera_report_image_action = 60;
-    CameraRestoreDefaultAction camera_restore_default_action = 61;
-    CameraSetAvailableCamerasAction camera_set_available_cameras_action = 62;
-    CameraSetIndexAction camera_set_index_action = 63;
-    CameraSetSelectedSourceAction camera_set_selected_source_action = 64;
-    CameraStartViewfinderAction camera_start_viewfinder_action = 65;
-    ChatAction chat_action = 66;
-    ChatAddMessageAction chat_add_message_action = 67;
-    ChatAppendToMessageAction chat_append_to_message_action = 68;
-    ChatClearAction chat_clear_action = 69;
-    ChatEndSessionAction chat_end_session_action = 70;
-    ChatSendUserMessageAction chat_send_user_message_action = 71;
-    ChatSetMessageTextAction chat_set_message_text_action = 72;
-    ChatStartSessionAction chat_start_session_action = 73;
-    ChatToggleAudioPlaybackAction chat_toggle_audio_playback_action = 74;
-    ClearDynamicMenuAction clear_dynamic_menu_action = 75;
-    CloseApplicationAction close_application_action = 76;
-    CloseInstructionAction close_instruction_action = 77;
-    DeregisterRegularAppAction deregister_regular_app_action = 78;
-    DisplayAction display_action = 79;
-    DisplayBlankAction display_blank_action = 80;
-    DisplayPauseAction display_pause_action = 81;
-    DisplayRedrawAction display_redraw_action = 82;
-    DisplayResumeAction display_resume_action = 83;
-    DisplaySetBlankTimeoutAction display_set_blank_timeout_action = 84;
-    DisplayUnblankAction display_unblank_action = 85;
-    DisplayUpdateActivityAction display_update_activity_action = 86;
-    DockerAction docker_action = 87;
-    DockerImageAction docker_image_action = 88;
-    DockerImageFetchAction docker_image_fetch_action = 89;
-    DockerImageReleaseAction docker_image_release_action = 90;
-    DockerImageRemoveAction docker_image_remove_action = 91;
-    DockerImageRemoveContainerAction docker_image_remove_container_action = 92;
-    DockerImageRunAction docker_image_run_action = 93;
-    DockerImageSetDockerIdAction docker_image_set_docker_id_action = 94;
-    DockerImageSetExposeToLanAction docker_image_set_expose_to_lan_action = 95;
-    DockerImageSetStatusAction docker_image_set_status_action = 96;
-    DockerImageStopAction docker_image_stop_action = 97;
-    DockerImageUpdateMetadataAction docker_image_update_metadata_action = 98;
-    DockerInstallAction docker_install_action = 99;
-    DockerRemoveUsernameAction docker_remove_username_action = 100;
-    DockerSetStatusAction docker_set_status_action = 101;
-    DockerStartAction docker_start_action = 102;
-    DockerStopAction docker_stop_action = 103;
-    DockerStoreUsernameAction docker_store_username_action = 104;
-    DynamicMenuAction dynamic_menu_action = 105;
-    ExecuteMenuActionAction execute_menu_action_action = 106;
-    FileDownloadAction file_download_action = 107;
-    FileDownloadReadyAction file_download_ready_action = 108;
-    FileDownloadRequestAction file_download_request_action = 109;
-    FileSystemAction file_system_action = 110;
-    FileSystemCopyAction file_system_copy_action = 111;
-    FileSystemMoveAction file_system_move_action = 112;
-    FileSystemRemoveAction file_system_remove_action = 113;
-    FileSystemReportSelectionAction file_system_report_selection_action = 114;
-    FileSystemSelectorPushedAction file_system_selector_pushed_action = 115;
-    FileUploadAction file_upload_action = 116;
-    FileUploadChunkAction file_upload_chunk_action = 117;
-    FileUploadCompleteAction file_upload_complete_action = 118;
-    FileUploadStartAction file_upload_start_action = 119;
-    InfraredAction infrared_action = 120;
-    InfraredAddDeviceAction infrared_add_device_action = 121;
-    InfraredHandleReceivedCodeAction infrared_handle_received_code_action = 122;
-    InfraredRegisterDeviceAction infrared_register_device_action = 123;
-    InfraredRemoveDeviceAction infrared_remove_device_action = 124;
-    InfraredSendCodeAction infrared_send_code_action = 125;
-    InfraredSetIsRegisteringDeviceAction infrared_set_is_registering_device_action = 126;
-    InfraredSetShouldPropagateAction infrared_set_should_propagate_action = 127;
-    InfraredSetShouldReceiveAction infrared_set_should_receive_action = 128;
-    InputAction input_action = 129;
-    InputCancelAction input_cancel_action = 130;
-    InputDemandAction input_demand_action = 131;
-    InputProvideAction input_provide_action = 132;
-    InputResolveAction input_resolve_action = 133;
-    IpAction ip_action = 134;
-    IpSetIsConnectedAction ip_set_is_connected_action = 135;
-    IpUpdateInterfacesAction ip_update_interfaces_action = 136;
-    KeypadAction keypad_action = 137;
-    KeypadKeyHoldAction keypad_key_hold_action = 138;
-    KeypadKeyPressAction keypad_key_press_action = 139;
-    KeypadKeyReleaseAction keypad_key_release_action = 140;
-    KeypadKeyUnholdAction keypad_key_unhold_action = 141;
-    KeypadReportContextAction keypad_report_context_action = 142;
-    LightDMAction light_dm_action = 143;
-    LightDMClearEnabledStateAction light_dm_clear_enabled_state_action = 144;
-    LightDMUpdateStateAction light_dm_update_state_action = 145;
-    LocalizationAction localization_action = 146;
-    LocalizationSetLanguageAction localization_set_language_action = 147;
-    MainAction main_action = 148;
-    MenuAction menu_action = 149;
-    MenuChooseByIconAction menu_choose_by_icon_action = 150;
-    MenuChooseByIndexAction menu_choose_by_index_action = 151;
-    MenuChooseByLabelAction menu_choose_by_label_action = 152;
-    MenuGoBackAction menu_go_back_action = 153;
-    MenuGoHomeAction menu_go_home_action = 154;
-    MenuScrollAction menu_scroll_action = 155;
-    NotificationsAction notifications_action = 156;
-    NotificationsAddAction notifications_add_action = 157;
-    NotificationsClearAction notifications_clear_action = 158;
-    NotificationsClearAllAction notifications_clear_all_action = 159;
-    NotificationsClearByIdAction notifications_clear_by_id_action = 160;
-    NotificationsDisplayAction notifications_display_action = 161;
-    OpenApplicationAction open_application_action = 162;
-    OpenRenderAction open_render_action = 163;
-    PowerAction power_action = 164;
-    PowerOffAction power_off_action = 165;
-    RPiConnectAction r_pi_connect_action = 166;
-    RPiConnectDoneDownloadingAction r_pi_connect_done_downloading_action = 167;
-    RPiConnectSetPendingAction r_pi_connect_set_pending_action = 168;
-    RPiConnectSetStatusAction r_pi_connect_set_status_action = 169;
-    RPiConnectStartDownloadingAction r_pi_connect_start_downloading_action = 170;
-    RPiConnectUpdateServiceStateAction r_pi_connect_update_service_state_action = 171;
-    RebootAction reboot_action = 172;
-    RegisterAppAction register_app_action = 173;
-    RegisterRegularAppAction register_regular_app_action = 174;
-    RegisterSettingAppAction register_setting_app_action = 175;
-    ReplayRecordedSequenceAction replay_recorded_sequence_action = 176;
-    ReportReplayingDoneAction report_replaying_done_action = 177;
-    RgbRingAction rgb_ring_action = 178;
-    RgbRingBlankAction rgb_ring_blank_action = 179;
-    RgbRingBlinkAction rgb_ring_blink_action = 180;
-    RgbRingColorfulCommandAction rgb_ring_colorful_command_action = 181;
-    RgbRingCommandAction rgb_ring_command_action = 182;
-    RgbRingFillDownfromAction rgb_ring_fill_downfrom_action = 183;
-    RgbRingFillUptoAction rgb_ring_fill_upto_action = 184;
-    RgbRingProgressWheelAction rgb_ring_progress_wheel_action = 185;
-    RgbRingProgressWheelStepAction rgb_ring_progress_wheel_step_action = 186;
-    RgbRingPulseAction rgb_ring_pulse_action = 187;
-    RgbRingRainbowAction rgb_ring_rainbow_action = 188;
-    RgbRingSequenceAction rgb_ring_sequence_action = 189;
-    RgbRingSetAllAction rgb_ring_set_all_action = 190;
-    RgbRingSetBrightnessAction rgb_ring_set_brightness_action = 191;
-    RgbRingSetEnabledAction rgb_ring_set_enabled_action = 192;
-    RgbRingSetIsBusyAction rgb_ring_set_is_busy_action = 193;
-    RgbRingSpinningWheelAction rgb_ring_spinning_wheel_action = 194;
-    RgbRingWaitableCommandAction rgb_ring_waitable_command_action = 195;
-    SSHAction ssh_action = 196;
-    SSHClearEnabledStateAction ssh_clear_enabled_state_action = 197;
-    SSHUpdateStateAction ssh_update_state_action = 198;
-    ScreenshotDataAction screenshot_data_action = 199;
-    SensorsAction sensors_action = 200;
-    SensorsReportReadingAction sensors_report_reading_action = 201;
-    SetAreEnclosuresVisibleAction set_are_enclosures_visible_action = 202;
-    SettingsAction settings_action = 203;
-    SettingsClearServiceErrorsAction settings_clear_service_errors_action = 204;
-    SettingsReportServiceErrorAction settings_report_service_error_action = 205;
-    SettingsServiceAction settings_service_action = 206;
-    SettingsServiceSetIsEnabledAction settings_service_set_is_enabled_action = 207;
-    SettingsServiceSetLogLevelAction settings_service_set_log_level_action = 208;
-    SettingsServiceSetShouldRestartAction settings_service_set_should_restart_action = 209;
-    SettingsServiceSetStatusAction settings_service_set_status_action = 210;
-    SettingsSetServicesAction settings_set_services_action = 211;
-    SettingsStartServiceAction settings_start_service_action = 212;
-    SettingsStopServiceAction settings_stop_service_action = 213;
-    SettingsToggleBetaVersionsAction settings_toggle_beta_versions_action = 214;
-    SettingsTogglePdbSignalAction settings_toggle_pdb_signal_action = 215;
-    SettingsToggleVisualDebugAction settings_toggle_visual_debug_action = 216;
-    SpeechRecognitionAction speech_recognition_action = 217;
-    SpeechRecognitionAddCommandAction speech_recognition_add_command_action = 218;
-    SpeechRecognitionRemoveCommandAction speech_recognition_remove_command_action = 219;
-    SpeechRecognitionReportIntentDetectionAction speech_recognition_report_intent_detection_action = 220;
-    SpeechRecognitionReportIntentTimeoutAction speech_recognition_report_intent_timeout_action = 221;
-    SpeechRecognitionReportSpeechAction speech_recognition_report_speech_action = 222;
-    SpeechRecognitionReportWakeWordDetectionAction speech_recognition_report_wake_word_detection_action = 223;
-    SpeechRecognitionSetIsAssistantActiveAction speech_recognition_set_is_assistant_active_action = 224;
-    SpeechRecognitionSetIsIntentsActiveAction speech_recognition_set_is_intents_active_action = 225;
-    SpeechRecognitionSetSelectedEngineAction speech_recognition_set_selected_engine_action = 226;
-    SpeechRecognitionUpdateCommandAction speech_recognition_update_command_action = 227;
-    SpeechSynthesisAction speech_synthesis_action = 228;
-    SpeechSynthesisReadTextAction speech_synthesis_read_text_action = 229;
-    SpeechSynthesisSetSelectedEngineAction speech_synthesis_set_selected_engine_action = 230;
-    StackAction stack_action = 231;
-    StackPopAction stack_pop_action = 232;
-    StackPopChatAction stack_pop_chat_action = 233;
-    StackPopItemAction stack_pop_item_action = 234;
-    StackPopNotificationAction stack_pop_notification_action = 235;
-    StackPopToRootAction stack_pop_to_root_action = 236;
-    StackPushApplicationAction stack_push_application_action = 237;
-    StackPushChatAction stack_push_chat_action = 238;
-    StackPushInstructionAction stack_push_instruction_action = 239;
-    StackPushMenuAction stack_push_menu_action = 240;
-    StackPushNotificationAction stack_push_notification_action = 241;
-    StackPushPromptAction stack_push_prompt_action = 242;
-    StackPushRenderAction stack_push_render_action = 243;
-    StackSetPageIndexAction stack_set_page_index_action = 244;
-    StatusIconsAction status_icons_action = 245;
-    StatusIconsRegisterAction status_icons_register_action = 246;
-    SystemAction system_action = 247;
-    SystemMetricsUpdateAction system_metrics_update_action = 248;
-    TakeScreenshotAction take_screenshot_action = 249;
-    ToggleRecordingAction toggle_recording_action = 250;
-    UpdateApplicationKwargsAction update_application_kwargs_action = 251;
-    UpdateCurrentViewAction update_current_view_action = 252;
-    UpdateDynamicMenuAction update_dynamic_menu_action = 253;
-    UpdateInstructionProgressAction update_instruction_progress_action = 254;
-    UpdateManagerAction update_manager_action = 255;
-    UpdateManagerReportFailedCheckAction update_manager_report_failed_check_action = 256;
-    UpdateManagerRequestCheckAction update_manager_request_check_action = 257;
-    UpdateManagerRequestUpdateAction update_manager_request_update_action = 258;
-    UpdateManagerSetVersionsAction update_manager_set_versions_action = 259;
-    UpdatePromptAction update_prompt_action = 260;
-    UpdateRenderPropsAction update_render_props_action = 261;
-    UsersAction users_action = 262;
-    UsersCreateUserAction users_create_user_action = 263;
-    UsersDeleteUserAction users_delete_user_action = 264;
-    UsersResetPasswordAction users_reset_password_action = 265;
-    UsersSetUsersAction users_set_users_action = 266;
-    VSCodeAction vs_code_action = 267;
-    VSCodeDoneDownloadingAction vs_code_done_downloading_action = 268;
-    VSCodeSetPendingAction vs_code_set_pending_action = 269;
-    VSCodeSetStatusAction vs_code_set_status_action = 270;
-    VSCodeStartDownloadingAction vs_code_start_downloading_action = 271;
-    WiFiAction wi_fi_action = 272;
-    WiFiInputConnectionAction wi_fi_input_connection_action = 273;
-    WiFiSetHasVisitedOnboardingAction wi_fi_set_has_visited_onboarding_action = 274;
-    WiFiUpdateAction wi_fi_update_action = 275;
-    WiFiUpdateRequestAction wi_fi_update_request_action = 276;
+    AssistantAddElevenLabsVoiceAction assistant_add_eleven_labs_voice_action = 2;
+    AssistantAddGenericLLMProviderAction assistant_add_generic_llm_provider_action = 3;
+    AssistantAddMoonshineDownloadedModelAction assistant_add_moonshine_downloaded_model_action = 4;
+    AssistantCancelRequestAction assistant_cancel_request_action = 5;
+    AssistantCompleteAction assistant_complete_action = 6;
+    AssistantDeleteElevenLabsVoiceAction assistant_delete_eleven_labs_voice_action = 7;
+    AssistantDeleteKokoroAction assistant_delete_kokoro_action = 8;
+    AssistantDeleteMoonshineModelAction assistant_delete_moonshine_model_action = 9;
+    AssistantDeleteOllamaModelAction assistant_delete_ollama_model_action = 10;
+    AssistantDeletePiperVoiceAction assistant_delete_piper_voice_action = 11;
+    AssistantDeleteVoskModelAction assistant_delete_vosk_model_action = 12;
+    AssistantDownloadKokoroAction assistant_download_kokoro_action = 13;
+    AssistantDownloadMoonshineModelAction assistant_download_moonshine_model_action = 14;
+    AssistantDownloadOllamaModelAction assistant_download_ollama_model_action = 15;
+    AssistantDownloadPiperVoiceAction assistant_download_piper_voice_action = 16;
+    AssistantDownloadVoskModelAction assistant_download_vosk_model_action = 17;
+    AssistantRemoveGenericLLMProviderAction assistant_remove_generic_llm_provider_action = 18;
+    AssistantRemoveMoonshineDownloadedModelAction assistant_remove_moonshine_downloaded_model_action = 19;
+    AssistantReportAction assistant_report_action = 20;
+    AssistantRunPipelineAction assistant_run_pipeline_action = 21;
+    AssistantSelectGenericLLMProviderAction assistant_select_generic_llm_provider_action = 22;
+    AssistantSetConversationEndPhrasesAction assistant_set_conversation_end_phrases_action = 23;
+    AssistantSetElevenLabsAvailableVoicesAction assistant_set_eleven_labs_available_voices_action = 24;
+    AssistantSetIsActiveAction assistant_set_is_active_action = 25;
+    AssistantSetKokoroDownloadedAction assistant_set_kokoro_downloaded_action = 26;
+    AssistantSetMistralAvailableVoicesAction assistant_set_mistral_available_voices_action = 27;
+    AssistantSetMoonshineDownloadingAction assistant_set_moonshine_downloading_action = 28;
+    AssistantSetOllamaDownloadedModelsAction assistant_set_ollama_downloaded_models_action = 29;
+    AssistantSetOllamaModelCapabilitiesAction assistant_set_ollama_model_capabilities_action = 30;
+    AssistantSetOllamaThinkingAction assistant_set_ollama_thinking_action = 31;
+    AssistantSetPiperDownloadedVoicesAction assistant_set_piper_downloaded_voices_action = 32;
+    AssistantSetSelectedImageGeneratorAction assistant_set_selected_image_generator_action = 33;
+    AssistantSetSelectedKokoroVoiceAction assistant_set_selected_kokoro_voice_action = 34;
+    AssistantSetSelectedLLMAction assistant_set_selected_llm_action = 35;
+    AssistantSetSelectedModelAction assistant_set_selected_model_action = 36;
+    AssistantSetSelectedMoonshineModelAction assistant_set_selected_moonshine_model_action = 37;
+    AssistantSetSelectedPiperVoiceAction assistant_set_selected_piper_voice_action = 38;
+    AssistantSetSelectedSTTAction assistant_set_selected_stt_action = 39;
+    AssistantSetSelectedTTSAction assistant_set_selected_tts_action = 40;
+    AssistantSetSelectedVoiceAction assistant_set_selected_voice_action = 41;
+    AssistantSetSelectedVoskModelAction assistant_set_selected_vosk_model_action = 42;
+    AssistantSetVoskDownloadedModelsAction assistant_set_vosk_downloaded_models_action = 43;
+    AssistantStartListeningAction assistant_start_listening_action = 44;
+    AssistantStopListeningAction assistant_stop_listening_action = 45;
+    AssistantStopTalkingAction assistant_stop_talking_action = 46;
+    AssistantSynthesizeAction assistant_synthesize_action = 47;
+    AssistantToggleListeningAction assistant_toggle_listening_action = 48;
+    AssistantTranscribeAction assistant_transcribe_action = 49;
+    AssistantUpdateProvidersAction assistant_update_providers_action = 50;
+    AudioAction audio_action = 51;
+    AudioChangeVolumeAction audio_change_volume_action = 52;
+    AudioInstallDriverAction audio_install_driver_action = 53;
+    AudioPlayAudioSampleAction audio_play_audio_sample_action = 54;
+    AudioPlayAudioSequenceAction audio_play_audio_sequence_action = 55;
+    AudioPlayChimeAction audio_play_chime_action = 56;
+    AudioPlayRecordingAction audio_play_recording_action = 57;
+    AudioPlaybackDoneAction audio_playback_done_action = 58;
+    AudioReportRemoteCaptureAction audio_report_remote_capture_action = 59;
+    AudioReportSampleAction audio_report_sample_action = 60;
+    AudioSetMuteStatusAction audio_set_mute_status_action = 61;
+    AudioSetVolumeAction audio_set_volume_action = 62;
+    AudioStartRecordingAction audio_start_recording_action = 63;
+    AudioStopPlaybackAction audio_stop_playback_action = 64;
+    AudioStopRecordingAction audio_stop_recording_action = 65;
+    AudioToggleMuteStatusAction audio_toggle_mute_status_action = 66;
+    AudioToggleRecordingAction audio_toggle_recording_action = 67;
+    CameraAction camera_action = 68;
+    CameraDetectAction camera_detect_action = 69;
+    CameraInstallDriverAction camera_install_driver_action = 70;
+    CameraRegisterRemoteAction camera_register_remote_action = 71;
+    CameraReportBarcodeAction camera_report_barcode_action = 72;
+    CameraReportImageAction camera_report_image_action = 73;
+    CameraRestoreDefaultAction camera_restore_default_action = 74;
+    CameraSetAvailableCamerasAction camera_set_available_cameras_action = 75;
+    CameraSetIndexAction camera_set_index_action = 76;
+    CameraSetSelectedSourceAction camera_set_selected_source_action = 77;
+    CameraStartViewfinderAction camera_start_viewfinder_action = 78;
+    ChatAction chat_action = 79;
+    ChatAddMessageAction chat_add_message_action = 80;
+    ChatAppendToMessageAction chat_append_to_message_action = 81;
+    ChatClearAction chat_clear_action = 82;
+    ChatEndSessionAction chat_end_session_action = 83;
+    ChatSendUserMessageAction chat_send_user_message_action = 84;
+    ChatSetMessageTextAction chat_set_message_text_action = 85;
+    ChatStartSessionAction chat_start_session_action = 86;
+    ChatToggleAudioPlaybackAction chat_toggle_audio_playback_action = 87;
+    ClearDynamicMenuAction clear_dynamic_menu_action = 88;
+    CloseApplicationAction close_application_action = 89;
+    CloseInstructionAction close_instruction_action = 90;
+    DeregisterRegularAppAction deregister_regular_app_action = 91;
+    DisplayAction display_action = 92;
+    DisplayBlankAction display_blank_action = 93;
+    DisplayPauseAction display_pause_action = 94;
+    DisplayRedrawAction display_redraw_action = 95;
+    DisplayResumeAction display_resume_action = 96;
+    DisplaySetBlankTimeoutAction display_set_blank_timeout_action = 97;
+    DisplayUnblankAction display_unblank_action = 98;
+    DisplayUpdateActivityAction display_update_activity_action = 99;
+    DockerAction docker_action = 100;
+    DockerImageAction docker_image_action = 101;
+    DockerImageFetchAction docker_image_fetch_action = 102;
+    DockerImageReleaseAction docker_image_release_action = 103;
+    DockerImageRemoveAction docker_image_remove_action = 104;
+    DockerImageRemoveContainerAction docker_image_remove_container_action = 105;
+    DockerImageRunAction docker_image_run_action = 106;
+    DockerImageSetDockerIdAction docker_image_set_docker_id_action = 107;
+    DockerImageSetExposeToLanAction docker_image_set_expose_to_lan_action = 108;
+    DockerImageSetStatusAction docker_image_set_status_action = 109;
+    DockerImageStopAction docker_image_stop_action = 110;
+    DockerImageUpdateMetadataAction docker_image_update_metadata_action = 111;
+    DockerInstallAction docker_install_action = 112;
+    DockerRemoveUsernameAction docker_remove_username_action = 113;
+    DockerSetHostNetworkAction docker_set_host_network_action = 114;
+    DockerSetStatusAction docker_set_status_action = 115;
+    DockerSetZigbeeIntentAction docker_set_zigbee_intent_action = 116;
+    DockerStartAction docker_start_action = 117;
+    DockerStopAction docker_stop_action = 118;
+    DockerStoreUsernameAction docker_store_username_action = 119;
+    DynamicMenuAction dynamic_menu_action = 120;
+    ExecuteMenuActionAction execute_menu_action_action = 121;
+    FileDownloadAction file_download_action = 122;
+    FileDownloadReadyAction file_download_ready_action = 123;
+    FileDownloadRequestAction file_download_request_action = 124;
+    FileSystemAction file_system_action = 125;
+    FileSystemCopyAction file_system_copy_action = 126;
+    FileSystemMoveAction file_system_move_action = 127;
+    FileSystemRemoveAction file_system_remove_action = 128;
+    FileSystemReportSelectionAction file_system_report_selection_action = 129;
+    FileSystemSelectorPushedAction file_system_selector_pushed_action = 130;
+    FileUploadAction file_upload_action = 131;
+    FileUploadChunkAction file_upload_chunk_action = 132;
+    FileUploadCompleteAction file_upload_complete_action = 133;
+    FileUploadStartAction file_upload_start_action = 134;
+    InfraredAction infrared_action = 135;
+    InfraredAddDeviceAction infrared_add_device_action = 136;
+    InfraredHandleReceivedCodeAction infrared_handle_received_code_action = 137;
+    InfraredRegisterDeviceAction infrared_register_device_action = 138;
+    InfraredRemoveDeviceAction infrared_remove_device_action = 139;
+    InfraredSendCodeAction infrared_send_code_action = 140;
+    InfraredSetIsRegisteringDeviceAction infrared_set_is_registering_device_action = 141;
+    InfraredSetShouldPropagateAction infrared_set_should_propagate_action = 142;
+    InfraredSetShouldReceiveAction infrared_set_should_receive_action = 143;
+    InputAction input_action = 144;
+    InputCancelAction input_cancel_action = 145;
+    InputDemandAction input_demand_action = 146;
+    InputProvideAction input_provide_action = 147;
+    InputResolveAction input_resolve_action = 148;
+    IpAction ip_action = 149;
+    IpSetIsConnectedAction ip_set_is_connected_action = 150;
+    IpUpdateInterfacesAction ip_update_interfaces_action = 151;
+    KeypadAction keypad_action = 152;
+    KeypadKeyHoldAction keypad_key_hold_action = 153;
+    KeypadKeyPressAction keypad_key_press_action = 154;
+    KeypadKeyReleaseAction keypad_key_release_action = 155;
+    KeypadKeyUnholdAction keypad_key_unhold_action = 156;
+    KeypadReportContextAction keypad_report_context_action = 157;
+    KioskAction kiosk_action = 158;
+    KioskAddDashboardAction kiosk_add_dashboard_action = 159;
+    KioskClearEnabledStateAction kiosk_clear_enabled_state_action = 160;
+    KioskDeleteDashboardAction kiosk_delete_dashboard_action = 161;
+    KioskRotatePortAction kiosk_rotate_port_action = 162;
+    KioskSetPortSelectionAction kiosk_set_port_selection_action = 163;
+    KioskUpdateStateAction kiosk_update_state_action = 164;
+    LightDMAction light_dm_action = 165;
+    LightDMClearEnabledStateAction light_dm_clear_enabled_state_action = 166;
+    LightDMUpdateStateAction light_dm_update_state_action = 167;
+    LocalizationAction localization_action = 168;
+    LocalizationRefreshWeatherAction localization_refresh_weather_action = 169;
+    LocalizationResetLocationAction localization_reset_location_action = 170;
+    LocalizationSetLanguageAction localization_set_language_action = 171;
+    LocalizationSetLocationAction localization_set_location_action = 172;
+    LocalizationSpeakDateAction localization_speak_date_action = 173;
+    LocalizationSpeakTimeAction localization_speak_time_action = 174;
+    LocalizationSpeakWeatherAction localization_speak_weather_action = 175;
+    LocalizationUpdateWeatherAction localization_update_weather_action = 176;
+    MainAction main_action = 177;
+    McpAction mcp_action = 178;
+    McpAddServerAction mcp_add_server_action = 179;
+    McpDeleteServerAction mcp_delete_server_action = 180;
+    McpSetServerStatusAction mcp_set_server_status_action = 181;
+    McpSetServersAction mcp_set_servers_action = 182;
+    McpSyncServersAction mcp_sync_servers_action = 183;
+    McpToggleServerAction mcp_toggle_server_action = 184;
+    MenuAction menu_action = 185;
+    MenuChooseByIconAction menu_choose_by_icon_action = 186;
+    MenuChooseByIndexAction menu_choose_by_index_action = 187;
+    MenuChooseByLabelAction menu_choose_by_label_action = 188;
+    MenuGoBackAction menu_go_back_action = 189;
+    MenuGoHomeAction menu_go_home_action = 190;
+    MenuScrollAction menu_scroll_action = 191;
+    MqttAction mqtt_action = 192;
+    MqttBundledCredentialsChangedAction mqtt_bundled_credentials_changed_action = 193;
+    MqttPublishAction mqtt_publish_action = 194;
+    MqttRequestAnnounceAction mqtt_request_announce_action = 195;
+    MqttSetAllowRemoteControlAction mqtt_set_allow_remote_control_action = 196;
+    MqttSetBrokerAction mqtt_set_broker_action = 197;
+    MqttSetBundledExposeToLanAction mqtt_set_bundled_expose_to_lan_action = 198;
+    MqttSetEnabledAction mqtt_set_enabled_action = 199;
+    MqttSetPublishedComponentsAction mqtt_set_published_components_action = 200;
+    MqttSetStatusAction mqtt_set_status_action = 201;
+    NotificationsAction notifications_action = 202;
+    NotificationsAddAction notifications_add_action = 203;
+    NotificationsClearAction notifications_clear_action = 204;
+    NotificationsClearAllAction notifications_clear_all_action = 205;
+    NotificationsClearByIdAction notifications_clear_by_id_action = 206;
+    NotificationsDisplayAction notifications_display_action = 207;
+    OpenApplicationAction open_application_action = 208;
+    OpenRenderAction open_render_action = 209;
+    PowerAction power_action = 210;
+    PowerOffAction power_off_action = 211;
+    RPiConnectAction r_pi_connect_action = 212;
+    RPiConnectDoneDownloadingAction r_pi_connect_done_downloading_action = 213;
+    RPiConnectSetPendingAction r_pi_connect_set_pending_action = 214;
+    RPiConnectSetStatusAction r_pi_connect_set_status_action = 215;
+    RPiConnectStartDownloadingAction r_pi_connect_start_downloading_action = 216;
+    RPiConnectUpdateServiceStateAction r_pi_connect_update_service_state_action = 217;
+    RebootAction reboot_action = 218;
+    RegisterAppAction register_app_action = 219;
+    RegisterRegularAppAction register_regular_app_action = 220;
+    RegisterSettingAppAction register_setting_app_action = 221;
+    ReplayRecordedSequenceAction replay_recorded_sequence_action = 222;
+    ReportReplayingDoneAction report_replaying_done_action = 223;
+    RgbRingAction rgb_ring_action = 224;
+    RgbRingBlankAction rgb_ring_blank_action = 225;
+    RgbRingBlinkAction rgb_ring_blink_action = 226;
+    RgbRingColorfulCommandAction rgb_ring_colorful_command_action = 227;
+    RgbRingCommandAction rgb_ring_command_action = 228;
+    RgbRingFillDownfromAction rgb_ring_fill_downfrom_action = 229;
+    RgbRingFillUptoAction rgb_ring_fill_upto_action = 230;
+    RgbRingProgressWheelAction rgb_ring_progress_wheel_action = 231;
+    RgbRingProgressWheelStepAction rgb_ring_progress_wheel_step_action = 232;
+    RgbRingPulseAction rgb_ring_pulse_action = 233;
+    RgbRingRainbowAction rgb_ring_rainbow_action = 234;
+    RgbRingSequenceAction rgb_ring_sequence_action = 235;
+    RgbRingSetAllAction rgb_ring_set_all_action = 236;
+    RgbRingSetBrightnessAction rgb_ring_set_brightness_action = 237;
+    RgbRingSetEnabledAction rgb_ring_set_enabled_action = 238;
+    RgbRingSetIsBusyAction rgb_ring_set_is_busy_action = 239;
+    RgbRingSpinningWheelAction rgb_ring_spinning_wheel_action = 240;
+    RgbRingWaitableCommandAction rgb_ring_waitable_command_action = 241;
+    SSHAction ssh_action = 242;
+    SSHClearEnabledStateAction ssh_clear_enabled_state_action = 243;
+    SSHUpdateStateAction ssh_update_state_action = 244;
+    ScreenshotDataAction screenshot_data_action = 245;
+    SensorsAction sensors_action = 246;
+    SensorsReportDeviceReadingsAction sensors_report_device_readings_action = 247;
+    SensorsReportReadingAction sensors_report_reading_action = 248;
+    SensorsScanAction sensors_scan_action = 249;
+    SensorsScanCompletedAction sensors_scan_completed_action = 250;
+    SetAreEnclosuresVisibleAction set_are_enclosures_visible_action = 251;
+    SetLocalOverlayOpenAction set_local_overlay_open_action = 252;
+    SettingsAction settings_action = 253;
+    SettingsClearServiceErrorsAction settings_clear_service_errors_action = 254;
+    SettingsReportServiceErrorAction settings_report_service_error_action = 255;
+    SettingsServiceAction settings_service_action = 256;
+    SettingsServiceSetIsEnabledAction settings_service_set_is_enabled_action = 257;
+    SettingsServiceSetLogLevelAction settings_service_set_log_level_action = 258;
+    SettingsServiceSetShouldRestartAction settings_service_set_should_restart_action = 259;
+    SettingsServiceSetStatusAction settings_service_set_status_action = 260;
+    SettingsSetServicesAction settings_set_services_action = 261;
+    SettingsStartServiceAction settings_start_service_action = 262;
+    SettingsStopServiceAction settings_stop_service_action = 263;
+    SettingsToggleAssistantDebugAction settings_toggle_assistant_debug_action = 264;
+    SettingsToggleBetaVersionsAction settings_toggle_beta_versions_action = 265;
+    SettingsToggleGrpcRemoteAccessAction settings_toggle_grpc_remote_access_action = 266;
+    SettingsTogglePdbSignalAction settings_toggle_pdb_signal_action = 267;
+    SettingsToggleVisualDebugAction settings_toggle_visual_debug_action = 268;
+    SpeechRecognitionAction speech_recognition_action = 269;
+    SpeechRecognitionAddCommandAction speech_recognition_add_command_action = 270;
+    SpeechRecognitionRemoveCommandAction speech_recognition_remove_command_action = 271;
+    SpeechRecognitionReportIntentDetectionAction speech_recognition_report_intent_detection_action = 272;
+    SpeechRecognitionReportIntentTimeoutAction speech_recognition_report_intent_timeout_action = 273;
+    SpeechRecognitionReportSpeechAction speech_recognition_report_speech_action = 274;
+    SpeechRecognitionReportWakeWordDetectionAction speech_recognition_report_wake_word_detection_action = 275;
+    SpeechRecognitionRunCommandAction speech_recognition_run_command_action = 276;
+    SpeechRecognitionSetAssistantEnabledAction speech_recognition_set_assistant_enabled_action = 277;
+    SpeechRecognitionSetAssistantListeningAction speech_recognition_set_assistant_listening_action = 278;
+    SpeechRecognitionSetConversationEndPhrasesAction speech_recognition_set_conversation_end_phrases_action = 279;
+    SpeechRecognitionSetWakeModeEnabledAction speech_recognition_set_wake_mode_enabled_action = 280;
+    SpeechRecognitionTriggerModeAction speech_recognition_trigger_mode_action = 281;
+    SpeechRecognitionUpdateCommandAction speech_recognition_update_command_action = 282;
+    SpeechSynthesisAction speech_synthesis_action = 283;
+    SpeechSynthesisReadTextAction speech_synthesis_read_text_action = 284;
+    SpeechSynthesisSetIsEnabledAction speech_synthesis_set_is_enabled_action = 285;
+    SpeechSynthesisSetPreferLocalAction speech_synthesis_set_prefer_local_action = 286;
+    StackAction stack_action = 287;
+    StackPopAction stack_pop_action = 288;
+    StackPopChatAction stack_pop_chat_action = 289;
+    StackPopItemAction stack_pop_item_action = 290;
+    StackPopNotificationAction stack_pop_notification_action = 291;
+    StackPopToRootAction stack_pop_to_root_action = 292;
+    StackPushApplicationAction stack_push_application_action = 293;
+    StackPushChatAction stack_push_chat_action = 294;
+    StackPushInstructionAction stack_push_instruction_action = 295;
+    StackPushMenuAction stack_push_menu_action = 296;
+    StackPushNotificationAction stack_push_notification_action = 297;
+    StackPushPromptAction stack_push_prompt_action = 298;
+    StackPushRenderAction stack_push_render_action = 299;
+    StackSetPageIndexAction stack_set_page_index_action = 300;
+    StatusIconsAction status_icons_action = 301;
+    StatusIconsRegisterAction status_icons_register_action = 302;
+    SystemAction system_action = 303;
+    SystemMetricsUpdateAction system_metrics_update_action = 304;
+    TailscaleAction tailscale_action = 305;
+    TailscaleDoneDownloadingAction tailscale_done_downloading_action = 306;
+    TailscaleSetPendingAction tailscale_set_pending_action = 307;
+    TailscaleSetStatusAction tailscale_set_status_action = 308;
+    TailscaleStartDownloadingAction tailscale_start_downloading_action = 309;
+    TakeScreenshotAction take_screenshot_action = 310;
+    ToggleRecordingAction toggle_recording_action = 311;
+    UpdateApplicationKwargsAction update_application_kwargs_action = 312;
+    UpdateCurrentViewAction update_current_view_action = 313;
+    UpdateDynamicMenuAction update_dynamic_menu_action = 314;
+    UpdateInstructionProgressAction update_instruction_progress_action = 315;
+    UpdateManagerAction update_manager_action = 316;
+    UpdateManagerReportFailedCheckAction update_manager_report_failed_check_action = 317;
+    UpdateManagerRequestCheckAction update_manager_request_check_action = 318;
+    UpdateManagerRequestUpdateAction update_manager_request_update_action = 319;
+    UpdateManagerSetVersionsAction update_manager_set_versions_action = 320;
+    UpdatePromptAction update_prompt_action = 321;
+    UpdateRenderPropsAction update_render_props_action = 322;
+    UsersAction users_action = 323;
+    UsersCreateUserAction users_create_user_action = 324;
+    UsersDeleteUserAction users_delete_user_action = 325;
+    UsersResetPasswordAction users_reset_password_action = 326;
+    UsersSetUsersAction users_set_users_action = 327;
+    VSCodeAction vs_code_action = 328;
+    VSCodeDoneDownloadingAction vs_code_done_downloading_action = 329;
+    VSCodeSetPendingAction vs_code_set_pending_action = 330;
+    VSCodeSetStatusAction vs_code_set_status_action = 331;
+    VSCodeStartDownloadingAction vs_code_start_downloading_action = 332;
+    WakeEngineSetEnabledAction wake_engine_set_enabled_action = 333;
+    WakeTriggerAddAction wake_trigger_add_action = 334;
+    WakeTriggerRemoveAction wake_trigger_remove_action = 335;
+    WakeWordDeleteModelAction wake_word_delete_model_action = 336;
+    WakeWordDownloadModelsAction wake_word_download_models_action = 337;
+    WakeWordSetAvailableModelsAction wake_word_set_available_models_action = 338;
+    WakeWordSetModelsStatusAction wake_word_set_models_status_action = 339;
+    WebUIAction web_ui_action = 340;
+    WebUIInputAction web_ui_input_action = 341;
+    WiFiAction wi_fi_action = 342;
+    WiFiInputConnectionAction wi_fi_input_connection_action = 343;
+    WiFiSetHasVisitedOnboardingAction wi_fi_set_has_visited_onboarding_action = 344;
+    WiFiSetHotspotRunningAction wi_fi_set_hotspot_running_action = 345;
+    WiFiStartHotspotAction wi_fi_start_hotspot_action = 346;
+    WiFiStopHotspotAction wi_fi_stop_hotspot_action = 347;
+    WiFiUpdateAction wi_fi_update_action = 348;
+    WiFiUpdateRequestAction wi_fi_update_request_action = 349;
+    WyomingAction wyoming_action = 350;
+    WyomingAddAccessPolicyAction wyoming_add_access_policy_action = 351;
+    WyomingRemoveAccessPolicyAction wyoming_remove_access_policy_action = 352;
+    WyomingReportEnginesStatusAction wyoming_report_engines_status_action = 353;
+    WyomingReportSatelliteStatusAction wyoming_report_satellite_status_action = 354;
+    WyomingSatelliteWakeAction wyoming_satellite_wake_action = 355;
+    WyomingSetEnginesEnabledAction wyoming_set_engines_enabled_action = 356;
+    WyomingSetSatelliteEnabledAction wyoming_set_satellite_enabled_action = 357;
+    WyomingSetZeroconfEnabledAction wyoming_set_zeroconf_enabled_action = 358;
   }
 }
 
 message Event {
   oneof event {
     ApplicationScrollEvent application_scroll_event = 1;
-    AssistantAddMcpServerEvent assistant_add_mcp_server_event = 2;
-    AssistantDeleteMcpServerEvent assistant_delete_mcp_server_event = 3;
-    AssistantDownloadKokoroEvent assistant_download_kokoro_event = 4;
-    AssistantDownloadOllamaModelEvent assistant_download_ollama_model_event = 5;
-    AssistantDownloadPiperVoiceEvent assistant_download_piper_voice_event = 6;
-    AssistantDownloadVoskModelEvent assistant_download_vosk_model_event = 7;
-    AssistantEvent assistant_event = 8;
-    AssistantGenericLLMProviderChangedEvent assistant_generic_llm_provider_changed_event = 9;
-    AssistantGenericLLMProviderRemovedEvent assistant_generic_llm_provider_removed_event = 10;
-    AssistantHandleReportEvent assistant_handle_report_event = 11;
-    AssistantModelChangedEvent assistant_model_changed_event = 12;
-    AssistantOllamaThinkingChangedEvent assistant_ollama_thinking_changed_event = 13;
-    AssistantPiperVoiceChangedEvent assistant_piper_voice_changed_event = 14;
-    AssistantRunPipelineEvent assistant_run_pipeline_event = 15;
-    AssistantStopTalkingEvent assistant_stop_talking_event = 16;
-    AssistantSyncMcpServersEvent assistant_sync_mcp_servers_event = 17;
-    AssistantToggleMcpServerEvent assistant_toggle_mcp_server_event = 18;
-    AssistantUpdateProvidersEvent assistant_update_providers_event = 19;
-    AudioEvent audio_event = 20;
-    AudioInstallDriverEvent audio_install_driver_event = 21;
-    AudioPlayAudioSampleEvent audio_play_audio_sample_event = 22;
-    AudioPlayAudioSequenceEvent audio_play_audio_sequence_event = 23;
-    AudioPlayChimeEvent audio_play_chime_event = 24;
-    AudioPlaybackDoneEvent audio_playback_done_event = 25;
-    AudioReportSampleEvent audio_report_sample_event = 26;
-    AudioStopPlaybackEvent audio_stop_playback_event = 27;
-    CameraDetectAdvertiseEvent camera_detect_advertise_event = 28;
-    CameraDetectEvent camera_detect_event = 29;
-    CameraDetectedEvent camera_detected_event = 30;
-    CameraEvent camera_event = 31;
-    CameraInstallDriverEvent camera_install_driver_event = 32;
-    CameraReinitializeEvent camera_reinitialize_event = 33;
-    CameraReportImageEvent camera_report_image_event = 34;
-    CameraRestoreDefaultEvent camera_restore_default_event = 35;
-    CameraStartViewfinderEvent camera_start_viewfinder_event = 36;
-    CameraStopViewfinderEvent camera_stop_viewfinder_event = 37;
-    ChatAudioPlaybackToggledEvent chat_audio_playback_toggled_event = 38;
-    ChatEvent chat_event = 39;
-    ChatSessionEndedEvent chat_session_ended_event = 40;
-    ChatSessionStartedEvent chat_session_started_event = 41;
-    ChatUserMessageSentEvent chat_user_message_sent_event = 42;
-    DisplayBlankEvent display_blank_event = 43;
-    DisplayCompressedRenderEvent display_compressed_render_event = 44;
-    DisplayEvent display_event = 45;
-    DisplayRedrawEvent display_redraw_event = 46;
-    DisplayRenderEvent display_render_event = 47;
-    DisplayUnblankEvent display_unblank_event = 48;
-    DockerEvent docker_event = 49;
-    DockerImageEvent docker_image_event = 50;
-    DockerImageFetchCompositionEvent docker_image_fetch_composition_event = 51;
-    DockerImageFetchEvent docker_image_fetch_event = 52;
-    DockerImageRebindEvent docker_image_rebind_event = 53;
-    DockerImageRegisterAppEvent docker_image_register_app_event = 54;
-    DockerImageReleaseCompositionEvent docker_image_release_composition_event = 55;
-    DockerImageRemoveCompositionEvent docker_image_remove_composition_event = 56;
-    DockerImageRemoveContainerEvent docker_image_remove_container_event = 57;
-    DockerImageRemoveEvent docker_image_remove_event = 58;
-    DockerImageRunCompositionEvent docker_image_run_composition_event = 59;
-    DockerImageRunContainerEvent docker_image_run_container_event = 60;
-    DockerImageStopCompositionEvent docker_image_stop_composition_event = 61;
-    DockerImageStopContainerEvent docker_image_stop_container_event = 62;
-    DockerInstallEvent docker_install_event = 63;
-    DockerStartEvent docker_start_event = 64;
-    DockerStopEvent docker_stop_event = 65;
-    DynamicMenuChangedEvent dynamic_menu_changed_event = 66;
-    ExecuteMenuActionEvent execute_menu_action_event = 67;
-    FileDownloadEvent file_download_event = 68;
-    FileDownloadReadyEvent file_download_ready_event = 69;
-    FileDownloadRequestEvent file_download_request_event = 70;
-    FileSystemCopyEvent file_system_copy_event = 71;
-    FileSystemEvent file_system_event = 72;
-    FileSystemMoveEvent file_system_move_event = 73;
-    FileSystemRemoveEvent file_system_remove_event = 74;
-    FileSystemSelectEvent file_system_select_event = 75;
-    FileSystemSelectorCleanupEvent file_system_selector_cleanup_event = 76;
-    FileSystemVideoFrameEvent file_system_video_frame_event = 77;
-    FileUploadChunkEvent file_upload_chunk_event = 78;
-    FileUploadCompleteEvent file_upload_complete_event = 79;
-    FileUploadErrorEvent file_upload_error_event = 80;
-    FileUploadEvent file_upload_event = 81;
-    FileUploadStartEvent file_upload_start_event = 82;
-    FrameStreamDataEvent frame_stream_data_event = 83;
-    InfraredBoundActionTriggeredEvent infrared_bound_action_triggered_event = 84;
-    InfraredDeviceRegistrationCompleteEvent infrared_device_registration_complete_event = 85;
-    InfraredDeviceRegistrationStartedEvent infrared_device_registration_started_event = 86;
-    InfraredEvent infrared_event = 87;
-    InfraredSendCodeEvent infrared_send_code_event = 88;
-    InitEvent init_event = 89;
-    InputCancelEvent input_cancel_event = 90;
-    InputProvideEvent input_provide_event = 91;
-    InputResolveEvent input_resolve_event = 92;
-    IpEvent ip_event = 93;
-    LocalizationEvent localization_event = 94;
-    LocalizationLanguageChangedEvent localization_language_changed_event = 95;
-    MainEvent main_event = 96;
-    MenuChooseByIconEvent menu_choose_by_icon_event = 97;
-    MenuChooseByIndexEvent menu_choose_by_index_event = 98;
-    MenuChooseByLabelEvent menu_choose_by_label_event = 99;
-    MenuEvent menu_event = 100;
-    NotificationsClearEvent notifications_clear_event = 101;
-    NotificationsDisplayEvent notifications_display_event = 102;
-    NotificationsEvent notifications_event = 103;
-    PowerEvent power_event = 104;
-    PowerOffEvent power_off_event = 105;
-    RPiConnectEvent r_pi_connect_event = 106;
-    RPiConnectLoginEvent r_pi_connect_login_event = 107;
-    RebootEvent reboot_event = 108;
-    ReplayRecordedSequenceEvent replay_recorded_sequence_event = 109;
-    RgbRingCommandEvent rgb_ring_command_event = 110;
-    RgbRingEvent rgb_ring_event = 111;
-    ScreenshotDataEvent screenshot_data_event = 112;
-    ScreenshotEvent screenshot_event = 113;
-    SettingsEvent settings_event = 114;
-    SettingsServiceEvent settings_service_event = 115;
-    SettingsStartServiceEvent settings_start_service_event = 116;
-    SettingsStopServiceEvent settings_stop_service_event = 117;
-    SnapshotEvent snapshot_event = 118;
-    SpeechRecognitionBoundActionTriggeredEvent speech_recognition_bound_action_triggered_event = 119;
-    SpeechRecognitionEvent speech_recognition_event = 120;
-    SpeechRecognitionReportTextEvent speech_recognition_report_text_event = 121;
-    SpeechSynthesisEvent speech_synthesis_event = 122;
-    SpeechSynthesisSynthesizeTextEvent speech_synthesis_synthesize_text_event = 123;
-    StackChangedEvent stack_changed_event = 124;
-    StackPageIndexChangedEvent stack_page_index_changed_event = 125;
-    StoreRecordedSequenceEvent store_recorded_sequence_event = 126;
-    SystemEvent system_event = 127;
-    UpdateManagerCheckEvent update_manager_check_event = 128;
-    UpdateManagerEvent update_manager_event = 129;
-    UpdateManagerUpdateEvent update_manager_update_event = 130;
-    UsersCreateUserEvent users_create_user_event = 131;
-    UsersDeleteUserEvent users_delete_user_event = 132;
-    UsersEvent users_event = 133;
-    UsersResetPasswordEvent users_reset_password_event = 134;
-    VSCodeEvent vs_code_event = 135;
-    VSCodeLoginEvent vs_code_login_event = 136;
-    VSCodeRestartEvent vs_code_restart_event = 137;
-    ViewChangedEvent view_changed_event = 138;
-    WebUIEvent web_ui_event = 139;
-    WebUIInitializeEvent web_ui_initialize_event = 140;
-    WebUIStopEvent web_ui_stop_event = 141;
-    WiFiEvent wi_fi_event = 142;
-    WiFiInputConnectionEvent wi_fi_input_connection_event = 143;
-    WiFiUpdateRequestEvent wi_fi_update_request_event = 144;
+    AssistantCancelRequestEvent assistant_cancel_request_event = 2;
+    AssistantDeleteKokoroEvent assistant_delete_kokoro_event = 3;
+    AssistantDeleteMoonshineModelEvent assistant_delete_moonshine_model_event = 4;
+    AssistantDeleteOllamaModelEvent assistant_delete_ollama_model_event = 5;
+    AssistantDeletePiperVoiceEvent assistant_delete_piper_voice_event = 6;
+    AssistantDeleteVoskModelEvent assistant_delete_vosk_model_event = 7;
+    AssistantDownloadKokoroEvent assistant_download_kokoro_event = 8;
+    AssistantDownloadMoonshineModelEvent assistant_download_moonshine_model_event = 9;
+    AssistantDownloadOllamaModelEvent assistant_download_ollama_model_event = 10;
+    AssistantDownloadPiperVoiceEvent assistant_download_piper_voice_event = 11;
+    AssistantDownloadVoskModelEvent assistant_download_vosk_model_event = 12;
+    AssistantEvent assistant_event = 13;
+    AssistantGenericLLMProviderChangedEvent assistant_generic_llm_provider_changed_event = 14;
+    AssistantGenericLLMProviderRemovedEvent assistant_generic_llm_provider_removed_event = 15;
+    AssistantHandleReportEvent assistant_handle_report_event = 16;
+    AssistantModelChangedEvent assistant_model_changed_event = 17;
+    AssistantOllamaThinkingChangedEvent assistant_ollama_thinking_changed_event = 18;
+    AssistantPiperVoiceChangedEvent assistant_piper_voice_changed_event = 19;
+    AssistantRequestMicStreamEvent assistant_request_mic_stream_event = 20;
+    AssistantRunPipelineEvent assistant_run_pipeline_event = 21;
+    AssistantStopTalkingEvent assistant_stop_talking_event = 22;
+    AssistantUpdateProvidersEvent assistant_update_providers_event = 23;
+    AssistantVoiceChangedEvent assistant_voice_changed_event = 24;
+    AudioEvent audio_event = 25;
+    AudioInstallDriverEvent audio_install_driver_event = 26;
+    AudioPlayAudioSampleEvent audio_play_audio_sample_event = 27;
+    AudioPlayAudioSequenceEvent audio_play_audio_sequence_event = 28;
+    AudioPlayChimeEvent audio_play_chime_event = 29;
+    AudioPlaybackDoneEvent audio_playback_done_event = 30;
+    AudioReportSampleEvent audio_report_sample_event = 31;
+    AudioStopPlaybackEvent audio_stop_playback_event = 32;
+    CameraDetectAdvertiseEvent camera_detect_advertise_event = 33;
+    CameraDetectEvent camera_detect_event = 34;
+    CameraDetectedEvent camera_detected_event = 35;
+    CameraEvent camera_event = 36;
+    CameraInstallDriverEvent camera_install_driver_event = 37;
+    CameraReinitializeEvent camera_reinitialize_event = 38;
+    CameraReportImageEvent camera_report_image_event = 39;
+    CameraRestoreDefaultEvent camera_restore_default_event = 40;
+    CameraStartViewfinderEvent camera_start_viewfinder_event = 41;
+    CameraStopViewfinderEvent camera_stop_viewfinder_event = 42;
+    ChatAudioPlaybackToggledEvent chat_audio_playback_toggled_event = 43;
+    ChatEvent chat_event = 44;
+    ChatSessionEndedEvent chat_session_ended_event = 45;
+    ChatSessionStartedEvent chat_session_started_event = 46;
+    ChatUserMessageSentEvent chat_user_message_sent_event = 47;
+    DisplayBlankEvent display_blank_event = 48;
+    DisplayCompressedRenderEvent display_compressed_render_event = 49;
+    DisplayEvent display_event = 50;
+    DisplayRedrawEvent display_redraw_event = 51;
+    DisplayRenderEvent display_render_event = 52;
+    DisplayUnblankEvent display_unblank_event = 53;
+    DockerEvent docker_event = 54;
+    DockerImageEvent docker_image_event = 55;
+    DockerImageFetchCompositionEvent docker_image_fetch_composition_event = 56;
+    DockerImageFetchEvent docker_image_fetch_event = 57;
+    DockerImageRebindEvent docker_image_rebind_event = 58;
+    DockerImageRegisterAppEvent docker_image_register_app_event = 59;
+    DockerImageReleaseCompositionEvent docker_image_release_composition_event = 60;
+    DockerImageRemoveCompositionEvent docker_image_remove_composition_event = 61;
+    DockerImageRemoveContainerEvent docker_image_remove_container_event = 62;
+    DockerImageRemoveEvent docker_image_remove_event = 63;
+    DockerImageRunCompositionEvent docker_image_run_composition_event = 64;
+    DockerImageRunContainerEvent docker_image_run_container_event = 65;
+    DockerImageStopCompositionEvent docker_image_stop_composition_event = 66;
+    DockerImageStopContainerEvent docker_image_stop_container_event = 67;
+    DockerInstallEvent docker_install_event = 68;
+    DockerStartEvent docker_start_event = 69;
+    DockerStopEvent docker_stop_event = 70;
+    DynamicMenuChangedEvent dynamic_menu_changed_event = 71;
+    ExecuteMenuActionEvent execute_menu_action_event = 72;
+    FileDownloadEvent file_download_event = 73;
+    FileDownloadReadyEvent file_download_ready_event = 74;
+    FileDownloadRequestEvent file_download_request_event = 75;
+    FileSystemCopyEvent file_system_copy_event = 76;
+    FileSystemEvent file_system_event = 77;
+    FileSystemMoveEvent file_system_move_event = 78;
+    FileSystemRemoveEvent file_system_remove_event = 79;
+    FileSystemSelectEvent file_system_select_event = 80;
+    FileSystemSelectorCleanupEvent file_system_selector_cleanup_event = 81;
+    FileSystemVideoFrameEvent file_system_video_frame_event = 82;
+    FileUploadChunkEvent file_upload_chunk_event = 83;
+    FileUploadCompleteEvent file_upload_complete_event = 84;
+    FileUploadErrorEvent file_upload_error_event = 85;
+    FileUploadEvent file_upload_event = 86;
+    FileUploadStartEvent file_upload_start_event = 87;
+    FrameStreamChunkEvent frame_stream_chunk_event = 88;
+    FrameStreamDataEvent frame_stream_data_event = 89;
+    InfraredBoundActionTriggeredEvent infrared_bound_action_triggered_event = 90;
+    InfraredDeviceRegistrationCompleteEvent infrared_device_registration_complete_event = 91;
+    InfraredDeviceRegistrationStartedEvent infrared_device_registration_started_event = 92;
+    InfraredEvent infrared_event = 93;
+    InfraredSendCodeEvent infrared_send_code_event = 94;
+    InitEvent init_event = 95;
+    InputCancelEvent input_cancel_event = 96;
+    InputProvideEvent input_provide_event = 97;
+    InputResolveEvent input_resolve_event = 98;
+    IpEvent ip_event = 99;
+    KioskApplyConfigEvent kiosk_apply_config_event = 100;
+    KioskEvent kiosk_event = 101;
+    LocalOverlayGoBackEvent local_overlay_go_back_event = 102;
+    LocalizationEvent localization_event = 103;
+    LocalizationLanguageChangedEvent localization_language_changed_event = 104;
+    LocalizationLocationChangedEvent localization_location_changed_event = 105;
+    LocalizationLocationResetEvent localization_location_reset_event = 106;
+    LocalizationSpeakDateEvent localization_speak_date_event = 107;
+    LocalizationSpeakTimeEvent localization_speak_time_event = 108;
+    LocalizationSpeakWeatherEvent localization_speak_weather_event = 109;
+    LocalizationWeatherRefreshRequestedEvent localization_weather_refresh_requested_event = 110;
+    MainEvent main_event = 111;
+    McpAddServerEvent mcp_add_server_event = 112;
+    McpDeleteServerEvent mcp_delete_server_event = 113;
+    McpEvent mcp_event = 114;
+    McpSyncServersEvent mcp_sync_servers_event = 115;
+    McpToggleServerEvent mcp_toggle_server_event = 116;
+    MenuChooseByIconEvent menu_choose_by_icon_event = 117;
+    MenuChooseByIndexEvent menu_choose_by_index_event = 118;
+    MenuChooseByLabelEvent menu_choose_by_label_event = 119;
+    MenuEvent menu_event = 120;
+    MqttAnnounceRequestedEvent mqtt_announce_requested_event = 121;
+    MqttEvent mqtt_event = 122;
+    MqttPublishEvent mqtt_publish_event = 123;
+    NotificationsClearEvent notifications_clear_event = 124;
+    NotificationsDisplayEvent notifications_display_event = 125;
+    NotificationsEvent notifications_event = 126;
+    PowerEvent power_event = 127;
+    PowerOffEvent power_off_event = 128;
+    RPiConnectEvent r_pi_connect_event = 129;
+    RPiConnectLoginEvent r_pi_connect_login_event = 130;
+    RebootEvent reboot_event = 131;
+    ReplayRecordedSequenceEvent replay_recorded_sequence_event = 132;
+    RgbRingCommandEvent rgb_ring_command_event = 133;
+    RgbRingEvent rgb_ring_event = 134;
+    ScreenshotDataEvent screenshot_data_event = 135;
+    ScreenshotEvent screenshot_event = 136;
+    SensorsEvent sensors_event = 137;
+    SensorsScanEvent sensors_scan_event = 138;
+    SettingsEvent settings_event = 139;
+    SettingsServiceEvent settings_service_event = 140;
+    SettingsStartServiceEvent settings_start_service_event = 141;
+    SettingsStopServiceEvent settings_stop_service_event = 142;
+    SnapshotEvent snapshot_event = 143;
+    SpeechRecognitionBoundActionTriggeredEvent speech_recognition_bound_action_triggered_event = 144;
+    SpeechRecognitionEvent speech_recognition_event = 145;
+    SpeechRecognitionReportTextEvent speech_recognition_report_text_event = 146;
+    SpeechSynthesisEvent speech_synthesis_event = 147;
+    SpeechSynthesisSynthesizeTextEvent speech_synthesis_synthesize_text_event = 148;
+    StackChangedEvent stack_changed_event = 149;
+    StackPageIndexChangedEvent stack_page_index_changed_event = 150;
+    StoreRecordedSequenceEvent store_recorded_sequence_event = 151;
+    SystemEvent system_event = 152;
+    TailscaleEvent tailscale_event = 153;
+    UpdateManagerCheckEvent update_manager_check_event = 154;
+    UpdateManagerEvent update_manager_event = 155;
+    UpdateManagerUpdateEvent update_manager_update_event = 156;
+    UsersCreateUserEvent users_create_user_event = 157;
+    UsersDeleteUserEvent users_delete_user_event = 158;
+    UsersEvent users_event = 159;
+    UsersResetPasswordEvent users_reset_password_event = 160;
+    VSCodeEvent vs_code_event = 161;
+    VSCodeLoginEvent vs_code_login_event = 162;
+    VSCodeRestartEvent vs_code_restart_event = 163;
+    ViewChangedEvent view_changed_event = 164;
+    WakeWordDeleteModelEvent wake_word_delete_model_event = 165;
+    WakeWordDownloadModelsEvent wake_word_download_models_event = 166;
+    WebUIEvent web_ui_event = 167;
+    WebUIInitializeEvent web_ui_initialize_event = 168;
+    WebUIInputEvent web_ui_input_event = 169;
+    WiFiEvent wi_fi_event = 170;
+    WiFiInputConnectionEvent wi_fi_input_connection_event = 171;
+    WiFiStartHotspotEvent wi_fi_start_hotspot_event = 172;
+    WiFiStopHotspotEvent wi_fi_stop_hotspot_event = 173;
+    WiFiUpdateRequestEvent wi_fi_update_request_event = 174;
+    WyomingEvent wyoming_event = 175;
+    WyomingSatelliteWakeEvent wyoming_satellite_wake_event = 176;
   }
 }
