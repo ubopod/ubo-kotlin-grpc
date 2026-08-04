@@ -418,15 +418,30 @@ public class UboConnection {
     ): Unit = coroutineScope {
         var attempt = 0
         val policy = reconnectPolicy
+        // A body that streamed healthily for this long resets the backoff.
+        // Without the reset, sporadic blips over a long-lived session
+        // accumulate towards maxRetries and permanently kill the
+        // subscription even though every individual outage recovered.
+        // Mirrors the fix applied to Swift's runWithRetry in cc0ab23.
+        val healthyRunThresholdMs = 30_000L
 
         while (isActive) {
+            val started = System.currentTimeMillis()
             try {
                 body()
+                // Body returned without error: server closed the stream.
+                // Treat as a soft retry — back off then re-subscribe.
+                if (System.currentTimeMillis() - started >= healthyRunThresholdMs) attempt = 0
                 attempt += 1
+                if (attempt >= policy.maxRetries) {
+                    onFinalError(UboError.SubscriptionFailed(UboError.Timeout))
+                    return@coroutineScope
+                }
             } catch (cancel: CancellationException) {
                 onCancelled()
                 throw cancel
             } catch (t: Throwable) {
+                if (System.currentTimeMillis() - started >= healthyRunThresholdMs) attempt = 0
                 attempt += 1
                 if (attempt >= policy.maxRetries) {
                     onFinalError(t)
@@ -435,14 +450,15 @@ public class UboConnection {
                 markReconnecting()
             }
 
-            val seconds = policy.delaySeconds(attempt)
-            if (seconds > 0) {
-                try {
-                    delay((seconds * 1000.0).toLong())
-                } catch (cancel: CancellationException) {
-                    onCancelled()
-                    throw cancel
-                }
+            // ±20% jitter de-synchronises the parallel subscriptions' reconnect
+            // attempts. A 0.2s floor stops a server that closes streams
+            // immediately from driving a hot re-subscribe loop.
+            val seconds = (policy.delaySeconds(attempt) * (0.8 + Math.random() * 0.4)).coerceAtLeast(0.2)
+            try {
+                delay((seconds * 1000.0).toLong())
+            } catch (cancel: CancellationException) {
+                onCancelled()
+                throw cancel
             }
         }
         onCancelled()

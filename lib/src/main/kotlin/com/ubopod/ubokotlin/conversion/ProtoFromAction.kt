@@ -26,9 +26,14 @@ public object ProtoFromAction {
         val builder = Ubo.Action.newBuilder()
         when (action) {
             // ---- Keypad ----
+            // The keypad reducer pattern-matches the full `pressed_keys` set,
+            // not just `key` (a bare press is `pressed_keys == {key}`) —
+            // mirrors the canonical shape the core's own GUI client sends
+            // (and the fix applied to Swift's buildProtoAction in cc0ab23).
             is UboAction.KeypadKeyPress -> builder.setKeypadKeyPressAction(
                 Ubo.KeypadKeyPressAction.newBuilder()
                     .setKey(toProtoKey(action.key))
+                    .addPressedKeys(toProtoKey(action.key))
                     .setTime(action.time.toFloat())
                     .build(),
             )
@@ -50,6 +55,8 @@ public object ProtoFromAction {
             is UboAction.KeypadKeyHold -> builder.setKeypadKeyHoldAction(
                 Ubo.KeypadKeyHoldAction.newBuilder()
                     .setKey(toProtoKey(action.key))
+                    .addPressedKeys(toProtoKey(action.key))
+                    .setHeldKeys(Ubo.KeypadKeyHoldAction.HeldKeys.newBuilder().addItems(toProtoKey(action.key)))
                     .setTime(action.time.toFloat())
                     .build(),
             )
