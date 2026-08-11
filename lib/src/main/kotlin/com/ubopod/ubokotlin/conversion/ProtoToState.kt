@@ -57,9 +57,9 @@ public object ProtoToState {
     /**
      * Merge the [results] of one [SubscribeStoreResponse][store.v1.Store.SubscribeStoreResponse]
      * frame into [previous] [SystemStats]. Each result's `Any` may carry
-     * either a [Ubo.SystemState] (CPU / RAM / clock) or [Ubo.SensorsState]
-     * (temperature / light); we union the fields and emit the new
-     * snapshot.
+     * a [Ubo.SystemState] (CPU / RAM), a [Ubo.LocalizationState] (clock),
+     * or a [Ubo.SensorsState] (temperature / light); we union the fields
+     * and emit the new snapshot.
      *
      * Returns `null` if no relevant fields were present in this frame.
      */
@@ -76,6 +76,12 @@ public object ProtoToState {
                     current = current.copy(
                         cpuPercent = if (s.hasCpuPercent()) s.cpuPercent else current.cpuPercent,
                         ramPercent = if (s.hasRamPercent()) s.ramPercent else current.ramPercent,
+                    )
+                    changed = true
+                }
+                "LocalizationState" -> {
+                    val s = Ubo.LocalizationState.parseFrom(any.value)
+                    current = current.copy(
                         clock = if (s.hasClock()) s.clock else current.clock,
                     )
                     changed = true

@@ -230,10 +230,11 @@ public class UboConnection {
     }
 
     /**
-     * Subscribe to the device's `state.system` + `state.sensors` slices.
-     * Each emission is the full [SystemStats] snapshot — partial updates
-     * are merged across frames (the StatsHolder pattern from the Swift
-     * port).
+     * Subscribe to the device's `state.system` + `state.sensors` +
+     * `state.localization` slices. Each emission is the full
+     * [SystemStats] snapshot — partial updates are merged across frames
+     * (the StatsHolder pattern from the Swift port). `clock` lives on
+     * `state.localization`, not `state.system`.
      *
      * Mirrors `Sources/UboSwift/Connection/UboConnection.swift`
      * `subscribeToSystemStats()`.
@@ -241,7 +242,7 @@ public class UboConnection {
     public fun subscribeToSystemStats(): Flow<SystemStats> = flow {
         val client = storeClient ?: throw UboError.NotConnected
         val request = Store.SubscribeStoreRequest.newBuilder()
-            .addAllSelectors(listOf("state.system", "state.sensors"))
+            .addAllSelectors(listOf("state.system", "state.sensors", "state.localization"))
             .build()
         var current: SystemStats? = null
         try {
