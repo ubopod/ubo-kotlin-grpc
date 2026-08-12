@@ -206,7 +206,12 @@ public object ProtoToState {
 
     public fun unpackActiveInputs(results: List<Any>): List<WebUIInputDescription>? {
         for (any in results) {
-            if (any.typeUrl.substringAfterLast('.') != "WebUIState") continue
+            // Python betterproto renames `WebUIState` to `WebUiState`
+            // (lowercase `i`) for the type URL — the only message name in
+            // this file with a back-to-back-capitals abbreviation, so it's
+            // the only one an exact-case match silently never hits. Compare
+            // case-insensitively, mirroring Swift's `unpackActiveInputs`.
+            if (!any.typeUrl.substringAfterLast('.').equals("WebUIState", ignoreCase = true)) continue
             val state = Ubo.WebUIState.parseFrom(any.value)
             return state.activeInputsList.map { convertWebUIInput(it) }
         }
