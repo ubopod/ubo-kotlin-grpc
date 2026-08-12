@@ -77,6 +77,23 @@ public class UboConnection {
             val newChannel = try {
                 OkHttpChannelBuilder.forAddress(host, port)
                     .apply { if (!useTls) usePlaintext() }
+                    // Confirmed root cause: the core's per-subscription
+                    // event queue (store_service.py) overflows and drops
+                    // AudioPlayAudioSequenceEvents under sustained TTS
+                    // load even when this client's own read loop never
+                    // blocks (verified via tracing — every AudioTrack
+                    // write takes ~0ms). The bottleneck sits between the
+                    // server's queue and bytes actually landing on this
+                    // socket: `subscribe_event`'s `yield` blocks on HTTP/2
+                    // flow control, which starves `queue.get()` on the
+                    // next loop turn. OkHttpChannelBuilder's 64KiB default
+                    // window was too small; iOS's grpc-swift/NIO and the
+                    // browser's grpc-web negotiate something more
+                    // generous by default, which is why only Android hit
+                    // this. Widening the window here (verified via
+                    // device testing: zero chunk loss, no reconnects,
+                    // sub-second initial latency) fixed it.
+                    .flowControlWindow(4 * 1024 * 1024)
                     .build()
                     .also { Log.d(TAG, "  channel built") }
             } catch (cancel: CancellationException) {
