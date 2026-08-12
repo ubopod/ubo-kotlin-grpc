@@ -4,10 +4,17 @@ import com.google.protobuf.Any
 import com.ubopod.ubokotlin.models.AudioSampleData
 import com.ubopod.ubokotlin.models.DisplayRectangle
 import com.ubopod.ubokotlin.models.DisplayRenderData
+import com.ubopod.ubokotlin.models.DockerAppStatus
+import com.ubopod.ubokotlin.models.DockerItemHealth
+import com.ubopod.ubokotlin.models.DockerItemStatus
 import com.ubopod.ubokotlin.models.InputFieldDescription
 import com.ubopod.ubokotlin.models.InputFieldType
 import com.ubopod.ubokotlin.models.PlaybackEvent
+import com.ubopod.ubokotlin.models.SensorDeviceState
+import com.ubopod.ubokotlin.models.SensorDeviceStatus
+import com.ubopod.ubokotlin.models.SensorEntityReading
 import com.ubopod.ubokotlin.models.SystemStats
+import com.ubopod.ubokotlin.models.WeatherCondition
 import com.ubopod.ubokotlin.models.WebUIInputDescription
 import ubo.v1.Ubo
 
@@ -56,10 +63,12 @@ public object ProtoToState {
 
     /**
      * Merge the [results] of one [SubscribeStoreResponse][store.v1.Store.SubscribeStoreResponse]
-     * frame into [previous] [SystemStats]. Each result's `Any` may carry
-     * a [Ubo.SystemState] (CPU / RAM), a [Ubo.LocalizationState] (clock),
-     * or a [Ubo.SensorsState] (temperature / light); we union the fields
-     * and emit the new snapshot.
+     * frame into [previous] [SystemStats]. Each result's `Any` may carry a
+     * [Ubo.SystemState] (CPU / RAM / temperature / disk / network / uptime),
+     * a [Ubo.LocalizationState] (clock / date / weather), a
+     * [Ubo.DockerServiceState] (Docker apps), or a [Ubo.SensorsState]
+     * (connected sensor devices); we union the fields and emit the new
+     * snapshot.
      *
      * Returns `null` if no relevant fields were present in this frame.
      */
@@ -76,6 +85,20 @@ public object ProtoToState {
                     current = current.copy(
                         cpuPercent = if (s.hasCpuPercent()) s.cpuPercent else current.cpuPercent,
                         ramPercent = if (s.hasRamPercent()) s.ramPercent else current.ramPercent,
+                        temperature = if (s.hasCpuTemperatureCelsius()) s.cpuTemperatureCelsius else current.temperature,
+                        loadAverage1 = if (s.hasLoadAverage1()) s.loadAverage1 else current.loadAverage1,
+                        loadAverage5 = if (s.hasLoadAverage5()) s.loadAverage5 else current.loadAverage5,
+                        loadAverage15 = if (s.hasLoadAverage15()) s.loadAverage15 else current.loadAverage15,
+                        bootTime = if (s.hasBootTime()) s.bootTime else current.bootTime,
+                        diskTotalBytes = if (s.hasDiskTotalBytes()) s.diskTotalBytes else current.diskTotalBytes,
+                        diskUsedBytes = if (s.hasDiskUsedBytes()) s.diskUsedBytes else current.diskUsedBytes,
+                        diskPercent = if (s.hasDiskPercent()) s.diskPercent else current.diskPercent,
+                        networkUploadBps = if (s.hasNetworkUploadBps()) s.networkUploadBps else current.networkUploadBps,
+                        networkDownloadBps = if (s.hasNetworkDownloadBps()) {
+                            s.networkDownloadBps
+                        } else {
+                            current.networkDownloadBps
+                        },
                     )
                     changed = true
                 }
@@ -83,13 +106,41 @@ public object ProtoToState {
                     val s = Ubo.LocalizationState.parseFrom(any.value)
                     current = current.copy(
                         clock = if (s.hasClock()) s.clock else current.clock,
+                        date = if (s.hasDate()) s.date else current.date,
+                        weather = if (s.hasWeather()) {
+                            WeatherCondition(
+                                symbolCode = s.weather.symbolCode,
+                                temperatureCelsius = s.weather.temperatureCelsius,
+                                windSpeedMps = if (s.weather.hasWindSpeedMps()) s.weather.windSpeedMps else null,
+                            )
+                        } else {
+                            current.weather
+                        },
+                        locationCity = if (s.hasLocation() && s.location.hasCity()) {
+                            s.location.city
+                        } else {
+                            current.locationCity
+                        },
+                        locationCountry = if (s.hasLocation() && s.location.hasCountry()) {
+                            s.location.country
+                        } else {
+                            current.locationCountry
+                        },
+                    )
+                    changed = true
+                }
+                "DockerServiceState" -> {
+                    val s = Ubo.DockerServiceState.parseFrom(any.value)
+                    current = current.copy(
+                        dockerApps = s.apps.itemsMap.values.map(::convertDockerAppStatus),
                     )
                     changed = true
                 }
                 "SensorsState" -> {
                     val s = Ubo.SensorsState.parseFrom(any.value)
-                    val t = if (s.hasTemperature() && s.temperature.hasValue()) s.temperature.value else current.temperature
-                    current = current.copy(temperature = t)
+                    current = current.copy(
+                        sensorDevices = s.devices.itemsMap.values.map(::convertSensorDeviceState),
+                    )
                     changed = true
                 }
                 "AudioState" -> {
@@ -105,6 +156,51 @@ public object ProtoToState {
         }
         return if (changed) current else null
     }
+
+    private fun convertDockerAppStatus(p: Ubo.DockerAppStatus): DockerAppStatus = DockerAppStatus(
+        id = p.id,
+        label = p.label,
+        icon = p.icon,
+        status = when (p.status) {
+            Ubo.DockerItemStatus.DOCKER_ITEM_STATUS_NOT_AVAILABLE -> DockerItemStatus.NOT_AVAILABLE
+            Ubo.DockerItemStatus.DOCKER_ITEM_STATUS_FETCHING -> DockerItemStatus.FETCHING
+            Ubo.DockerItemStatus.DOCKER_ITEM_STATUS_AVAILABLE -> DockerItemStatus.AVAILABLE
+            Ubo.DockerItemStatus.DOCKER_ITEM_STATUS_CREATED -> DockerItemStatus.CREATED
+            Ubo.DockerItemStatus.DOCKER_ITEM_STATUS_STARTING -> DockerItemStatus.STARTING
+            Ubo.DockerItemStatus.DOCKER_ITEM_STATUS_RUNNING -> DockerItemStatus.RUNNING
+            Ubo.DockerItemStatus.DOCKER_ITEM_STATUS_ERROR -> DockerItemStatus.ERROR
+            Ubo.DockerItemStatus.DOCKER_ITEM_STATUS_PROCESSING -> DockerItemStatus.PROCESSING
+            else -> DockerItemStatus.UNSPECIFIED
+        },
+        health = when (p.health) {
+            Ubo.DockerItemHealth.DOCKER_ITEM_HEALTH_OK -> DockerItemHealth.OK
+            Ubo.DockerItemHealth.DOCKER_ITEM_HEALTH_RECOVERED -> DockerItemHealth.RECOVERED
+            Ubo.DockerItemHealth.DOCKER_ITEM_HEALTH_CRASH_LOOPING -> DockerItemHealth.CRASH_LOOPING
+            else -> DockerItemHealth.UNSPECIFIED
+        },
+    )
+
+    private fun convertSensorDeviceState(p: Ubo.SensorDeviceState): SensorDeviceState = SensorDeviceState(
+        id = p.id,
+        label = p.label,
+        status = when (p.status) {
+            Ubo.SensorStatus.SENSOR_STATUS_ACTIVE -> SensorDeviceStatus.ACTIVE
+            Ubo.SensorStatus.SENSOR_STATUS_ERROR -> SensorDeviceStatus.ERROR
+            Ubo.SensorStatus.SENSOR_STATUS_UNSUPPORTED -> SensorDeviceStatus.UNSUPPORTED
+            Ubo.SensorStatus.SENSOR_STATUS_AMBIGUOUS -> SensorDeviceStatus.AMBIGUOUS
+            else -> SensorDeviceStatus.UNSPECIFIED
+        },
+        entities = if (p.hasEntities()) p.entities.itemsList.map(::convertSensorEntityReading) else emptyList(),
+    )
+
+    private fun convertSensorEntityReading(p: Ubo.SensorEntityReading): SensorEntityReading = SensorEntityReading(
+        key = p.key,
+        value = if (p.hasValue()) p.value else null,
+        name = if (p.hasName()) p.name else null,
+        unit = if (p.hasUnit()) p.unit else null,
+        deviceClass = if (p.hasDeviceClass()) p.deviceClass else null,
+        precision = if (p.hasPrecision()) p.precision else null,
+    )
 
     // ---- WebUI active inputs ----
 
