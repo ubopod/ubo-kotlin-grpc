@@ -7,6 +7,7 @@ import com.ubopod.ubokotlin.models.DisplayRenderData
 import com.ubopod.ubokotlin.models.DockerAppStatus
 import com.ubopod.ubokotlin.models.DockerItemHealth
 import com.ubopod.ubokotlin.models.DockerItemStatus
+import com.ubopod.ubokotlin.models.FrameStreamFrame
 import com.ubopod.ubokotlin.models.InputFieldDescription
 import com.ubopod.ubokotlin.models.InputFieldType
 import com.ubopod.ubokotlin.models.PlaybackEvent
@@ -323,6 +324,21 @@ public object ProtoToState {
                     x2 = rect.getOrNull(3)?.toInt() ?: 0,
                 ),
                 density = if (p.density > 0f) p.density else 1f,
+            )
+        } else null
+
+    /**
+     * Convert a `FrameStreamDataEvent` into a [FrameStreamFrame]. Mirrors
+     * the Swift `UboConnection.streamFrameStream`'s per-event conversion.
+     */
+    public fun convertFrameStreamEvent(event: Ubo.Event): FrameStreamFrame? =
+        if (event.eventCase == Ubo.Event.EventCase.FRAME_STREAM_DATA_EVENT) {
+            val p = event.frameStreamDataEvent
+            FrameStreamFrame(
+                streamId = p.streamId,
+                data = p.data.toByteArray(),
+                width = p.width.toInt(),
+                height = p.height.toInt(),
             )
         } else null
 }

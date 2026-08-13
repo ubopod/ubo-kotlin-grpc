@@ -5,6 +5,7 @@ import com.ubopod.ubokotlin.UboError
 import com.ubopod.ubokotlin.conversion.ProtoFromAction
 import com.ubopod.ubokotlin.conversion.ProtoToState
 import com.ubopod.ubokotlin.conversion.ProtoToView
+import com.ubopod.ubokotlin.models.FrameStreamFrame
 import com.ubopod.ubokotlin.models.PlaybackEvent
 import com.ubopod.ubokotlin.models.StatusBarData
 import com.ubopod.ubokotlin.models.SystemStats
@@ -361,6 +362,35 @@ public class UboConnection {
         try {
             client.subscribeEvent(request).collect { response ->
                 ProtoToState.convertDisplayRenderEvent(response.event)?.let { emit(it) }
+            }
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (t: Throwable) {
+            throw UboError.SubscriptionFailed(t)
+        }
+    }
+
+    /**
+     * Subscribe to `FrameStreamDataEvent` frames. If [streamId] is
+     * non-empty, only frames belonging to that stream are emitted;
+     * otherwise every frame is emitted. Mirrors the Swift
+     * `UboConnection.subscribeToFrameStream`.
+     */
+    public fun subscribeToFrameStream(streamId: String = ""): Flow<FrameStreamFrame> = flow {
+        val client = storeClient ?: throw UboError.NotConnected
+        val filter = listOf(
+            ubo.v1.Ubo.Event.newBuilder()
+                .setFrameStreamDataEvent(ubo.v1.Ubo.FrameStreamDataEvent.getDefaultInstance())
+                .build(),
+        )
+        val request = Store.SubscribeEventRequest.newBuilder()
+            .addAllEvents(filter)
+            .build()
+        try {
+            client.subscribeEvent(request).collect { response ->
+                ProtoToState.convertFrameStreamEvent(response.event)?.let { frame ->
+                    if (streamId.isEmpty() || frame.streamId == streamId) emit(frame)
+                }
             }
         } catch (cancel: CancellationException) {
             throw cancel

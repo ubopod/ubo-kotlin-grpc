@@ -9,6 +9,7 @@ import com.ubopod.ubokotlin.models.AudioSampleData
 import com.ubopod.ubokotlin.models.Chime
 import com.ubopod.ubokotlin.models.DisplayBlankTimeout
 import com.ubopod.ubokotlin.models.DisplayRenderData
+import com.ubopod.ubokotlin.models.FrameStreamFrame
 import com.ubopod.ubokotlin.models.Key
 import com.ubopod.ubokotlin.models.MenuItemData
 import com.ubopod.ubokotlin.models.PlaybackEvent
@@ -398,6 +399,14 @@ public class UboClient(
      * Mirrors Swift `UboClient.playbackEvents()`.
      */
     public fun playbackEvents(): Flow<PlaybackEvent> = connection.subscribeToPlaybackEvents()
+
+    /**
+     * Cold [Flow] of frames for a `frame_stream`/`image_viewer` render
+     * view. If [streamId] is non-empty, only frames belonging to that
+     * stream are emitted. Mirrors Swift `UboClient.frameStream(streamId:)`.
+     */
+    public fun frameStream(streamId: String = ""): Flow<FrameStreamFrame> =
+        connection.subscribeToFrameStream(streamId)
 
     /**
      * Subscribe to the device's audio playback events with the same
