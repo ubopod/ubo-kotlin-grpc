@@ -20,6 +20,7 @@ import com.ubopod.ubokotlin.models.UboColor
 import com.ubopod.ubokotlin.models.UboNotification
 import com.ubopod.ubokotlin.models.ViewData
 import com.ubopod.ubokotlin.models.WebUIInputDescription
+import java.io.InputStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -734,7 +735,8 @@ public class UboClient(
     }
 
     /**
-     * Upload [data] as [filename], chunked to match the server's
+     * Upload a file read from [openStream] (called once, right before
+     * reading begins), chunked to match the server's
      * `FileUploadStartAction`/`FileUploadChunkAction`/
      * `FileUploadCompleteAction` session protocol (see
      * `ubo_app/services/090-file-system/upload_handler.py`). [id] is the
@@ -743,29 +745,58 @@ public class UboClient(
      * the server-side form handler's `await_completed_upload(id)` finds
      * this upload once it finishes.
      *
+     * Reads and holds only one chunk (`UploadConfig.CHUNK_SIZE`, 512 KB) at
+     * a time from the stream — never the whole file — so a large picked
+     * file (a Pixel video easily runs to hundreds of MB) doesn't blow the
+     * app's heap the way buffering it into one `ByteArray` up front would.
      * Chunks are sent sequentially (the Web UI sends them concurrently;
      * this trades some speed for a much simpler retry story and less load
      * on the device's gRPC server). Each chunk gets its own retry budget,
      * matching the Web UI's per-chunk retry.
      */
-    public suspend fun uploadFile(id: String, filename: String, data: ByteArray) {
+    public suspend fun uploadFile(
+        id: String,
+        filename: String,
+        totalSize: Long,
+        openStream: suspend () -> InputStream,
+    ) {
         val chunkSize = UploadConfig.CHUNK_SIZE
-        val totalChunks = if (data.isEmpty()) 0L else ((data.size + chunkSize - 1) / chunkSize).toLong()
+        val totalChunks = if (totalSize <= 0L) 0L else (totalSize + chunkSize - 1) / chunkSize
         dispatch(
             UboAction.FileUploadStart(
                 uploadId = id,
                 filename = filename,
-                totalSize = data.size.toLong(),
+                totalSize = totalSize,
                 totalChunks = totalChunks,
                 chunkSize = chunkSize.toLong(),
             ),
         )
-        for (index in 0 until totalChunks) {
-            val start = (index * chunkSize).toInt()
-            val end = minOf(start + chunkSize, data.size)
-            sendChunkWithRetry(uploadId = id, chunkIndex = index, chunk = data.copyOfRange(start, end))
+        if (totalChunks > 0) {
+            withContext(Dispatchers.IO) { openStream() }.use { stream ->
+                val buffer = ByteArray(chunkSize)
+                for (index in 0 until totalChunks) {
+                    val expected = if (index == totalChunks - 1) {
+                        (totalSize - index * chunkSize).toInt()
+                    } else {
+                        chunkSize
+                    }
+                    val chunk = withContext(Dispatchers.IO) { readExactly(stream, buffer, expected) }
+                    sendChunkWithRetry(uploadId = id, chunkIndex = index, chunk = chunk)
+                }
+            }
         }
         dispatch(UboAction.FileUploadComplete(id))
+    }
+
+    /** Read exactly [length] bytes from [stream] into [buffer] (fewer only at EOF). */
+    private fun readExactly(stream: InputStream, buffer: ByteArray, length: Int): ByteArray {
+        var offset = 0
+        while (offset < length) {
+            val read = stream.read(buffer, offset, length - offset)
+            if (read == -1) break
+            offset += read
+        }
+        return buffer.copyOf(offset)
     }
 
     private suspend fun sendChunkWithRetry(uploadId: String, chunkIndex: Long, chunk: ByteArray) {
