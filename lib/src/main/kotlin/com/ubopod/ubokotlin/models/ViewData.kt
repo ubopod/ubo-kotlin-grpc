@@ -58,6 +58,7 @@ public sealed class RenderKind(public val rawValue: String) {
     public object ImageViewer : RenderKind("image_viewer")
     public object FrameStream : RenderKind("frame_stream")
     public object Status : RenderKind("status")
+    public object Readings : RenderKind("readings")
     public data class Unknown(val raw: String) : RenderKind(raw)
 
     public companion object {
@@ -68,6 +69,7 @@ public sealed class RenderKind(public val rawValue: String) {
             "image_viewer" -> ImageViewer
             "frame_stream" -> FrameStream
             "status" -> Status
+            "readings" -> Readings
             else -> Unknown(raw)
         }
     }
