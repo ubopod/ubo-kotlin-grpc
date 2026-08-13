@@ -24,6 +24,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -709,6 +710,70 @@ public class UboClient(
 
     public suspend fun cancelInput(id: String): Unit =
         dispatch(UboAction.InputCancel(id))
+
+    // ---- File Upload ----
+
+    /**
+     * Chunk size, retry count, and inter-retry backoff mirror the Web UI's
+     * `inputs.tsx` (`CHUNK_SIZE` / `MAX_RETRIES` / `RETRY_DELAY_MS`) so
+     * behavior is consistent across clients.
+     */
+    private object UploadConfig {
+        const val CHUNK_SIZE: Int = 512 * 1024
+        const val MAX_RETRIES: Int = 3
+        const val RETRY_DELAY_MS: Long = 1000
+    }
+
+    /**
+     * Upload [data] as [filename], chunked to match the server's
+     * `FileUploadStartAction`/`FileUploadChunkAction`/
+     * `FileUploadCompleteAction` session protocol (see
+     * `ubo_app/services/090-file-system/upload_handler.py`). [id] is the
+     * caller-generated upload id — pass the same value as the
+     * `{field}_upload_id` entry in the `data` map given to [provideInput] so
+     * the server-side form handler's `await_completed_upload(id)` finds
+     * this upload once it finishes.
+     *
+     * Chunks are sent sequentially (the Web UI sends them concurrently;
+     * this trades some speed for a much simpler retry story and less load
+     * on the device's gRPC server). Each chunk gets its own retry budget,
+     * matching the Web UI's per-chunk retry.
+     */
+    public suspend fun uploadFile(id: String, filename: String, data: ByteArray) {
+        val chunkSize = UploadConfig.CHUNK_SIZE
+        val totalChunks = if (data.isEmpty()) 0L else ((data.size + chunkSize - 1) / chunkSize).toLong()
+        dispatch(
+            UboAction.FileUploadStart(
+                uploadId = id,
+                filename = filename,
+                totalSize = data.size.toLong(),
+                totalChunks = totalChunks,
+                chunkSize = chunkSize.toLong(),
+            ),
+        )
+        for (index in 0 until totalChunks) {
+            val start = (index * chunkSize).toInt()
+            val end = minOf(start + chunkSize, data.size)
+            sendChunkWithRetry(uploadId = id, chunkIndex = index, chunk = data.copyOfRange(start, end))
+        }
+        dispatch(UboAction.FileUploadComplete(id))
+    }
+
+    private suspend fun sendChunkWithRetry(uploadId: String, chunkIndex: Long, chunk: ByteArray) {
+        var lastError: Throwable? = null
+        for (attempt in 0..UploadConfig.MAX_RETRIES) {
+            try {
+                dispatch(UboAction.FileUploadChunk(uploadId, chunkIndex, chunk))
+                return
+            } catch (error: Throwable) {
+                lastError = error
+                if (attempt < UploadConfig.MAX_RETRIES) {
+                    delay(UploadConfig.RETRY_DELAY_MS * (attempt + 1))
+                }
+            }
+        }
+        throw lastError ?: IllegalStateException("Chunk $chunkIndex failed with no recorded error")
+    }
 
     // ---- Raw dispatch ----
 

@@ -119,6 +119,51 @@ public sealed class UboAction {
     ) : UboAction()
     public data class InputCancel(val id: String) : UboAction()
 
+    // ---- File Upload ----
+
+    /**
+     * Begin a chunked upload session. Prefer the high-level
+     * `UboClient.uploadFile(id, filename, data)`, which drives this plus
+     * the chunk/complete steps with retry — these three cases exist so
+     * `ProtoFromAction` has something to match on.
+     */
+    public data class FileUploadStart(
+        val uploadId: String,
+        val filename: String,
+        val totalSize: Long,
+        val totalChunks: Long,
+        val chunkSize: Long,
+    ) : UboAction()
+
+    /**
+     * Send one chunk of an in-progress upload. [chunkIndex] is 0-based;
+     * [data] must be exactly `chunkSize` bytes except for the final chunk.
+     */
+    public data class FileUploadChunk(
+        val uploadId: String,
+        val chunkIndex: Long,
+        val data: ByteArray,
+    ) : UboAction() {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+            other as FileUploadChunk
+            return uploadId == other.uploadId &&
+                chunkIndex == other.chunkIndex &&
+                data.contentEquals(other.data)
+        }
+
+        override fun hashCode(): Int {
+            var result = uploadId.hashCode()
+            result = 31 * result + chunkIndex.hashCode()
+            result = 31 * result + data.contentHashCode()
+            return result
+        }
+    }
+
+    /** Signal that every chunk has been sent. */
+    public data class FileUploadComplete(val uploadId: String) : UboAction()
+
     // ---- Assistant ----
 
     /**

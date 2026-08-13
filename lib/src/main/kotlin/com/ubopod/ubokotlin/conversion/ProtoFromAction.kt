@@ -293,6 +293,29 @@ public object ProtoFromAction {
                     .build(),
             )
 
+            // ---- File Upload ----
+            is UboAction.FileUploadStart -> builder.setFileUploadStartAction(
+                Ubo.FileUploadStartAction.newBuilder()
+                    .setUploadId(action.uploadId)
+                    .setFilename(action.filename)
+                    .setTotalSize(action.totalSize)
+                    .setTotalChunks(action.totalChunks)
+                    .setChunkSize(action.chunkSize)
+                    .build(),
+            )
+            is UboAction.FileUploadChunk -> builder.setFileUploadChunkAction(
+                Ubo.FileUploadChunkAction.newBuilder()
+                    .setUploadId(action.uploadId)
+                    .setChunkIndex(action.chunkIndex)
+                    .setData(ByteString.copyFrom(action.data))
+                    .build(),
+            )
+            is UboAction.FileUploadComplete -> builder.setFileUploadCompleteAction(
+                Ubo.FileUploadCompleteAction.newBuilder()
+                    .setUploadId(action.uploadId)
+                    .build(),
+            )
+
             // ---- Assistant ----
             is UboAction.AssistantStartListening -> builder.setAssistantStartListeningAction(
                 Ubo.AssistantStartListeningAction.newBuilder()
