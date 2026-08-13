@@ -250,6 +250,12 @@ public object ProtoFromAction {
                     .setIcon(action.icon)
                     .build(),
             )
+            is UboAction.ExecuteMenuAction -> builder.setExecuteMenuActionAction(
+                Ubo.ExecuteMenuActionAction.newBuilder()
+                    .setActionId(action.actionId)
+                    .apply { action.menuKey?.let { setMenuKey(it) } }
+                    .build(),
+            )
             is UboAction.StackPushMenu -> builder.setStackPushMenuAction(
                 Ubo.StackPushMenuAction.newBuilder()
                     .setMenuKey(action.menuKey)
@@ -269,6 +275,16 @@ public object ProtoFromAction {
                 Ubo.InputProvideAction.newBuilder()
                     .setId(action.id)
                     .setValue(action.value)
+                    // Always attach a result, even for single-field forms:
+                    // server handlers for multi-field WebUIInputDescription
+                    // forms read result.data, not value (mirrors the Web
+                    // UI's inputs.tsx).
+                    .setResult(
+                        Ubo.InputResult.newBuilder()
+                            .putAllData(action.data)
+                            .setMethod(Ubo.InputMethod.INPUT_METHOD_WEB_DASHBOARD)
+                            .build(),
+                    )
                     .build(),
             )
             is UboAction.InputCancel -> builder.setInputCancelAction(

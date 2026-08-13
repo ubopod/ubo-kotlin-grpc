@@ -10,6 +10,7 @@ import com.ubopod.ubokotlin.models.Chime
 import com.ubopod.ubokotlin.models.DisplayBlankTimeout
 import com.ubopod.ubokotlin.models.DisplayRenderData
 import com.ubopod.ubokotlin.models.Key
+import com.ubopod.ubokotlin.models.MenuItemData
 import com.ubopod.ubokotlin.models.PlaybackEvent
 import com.ubopod.ubokotlin.models.StatusBarData
 import com.ubopod.ubokotlin.models.SystemStats
@@ -456,8 +457,51 @@ public class UboClient(
     public suspend fun selectMenuItemByIcon(icon: String): Unit =
         dispatch(UboAction.MenuChooseByIcon(icon))
 
+    /**
+     * Execute a menu item's action directly by its `action_id`. Prefer this
+     * over [selectMenuItem]/[selectMenuItemByIcon] — those depend on the
+     * server's legacy label/icon lookup staying in sync with whatever the
+     * client is showing, which it isn't for every screen (prompts,
+     * notably). Every `MenuItemData` the server streams already carries its
+     * `actionId`.
+     */
+    public suspend fun executeMenuAction(actionId: String, menuKey: String? = null): Unit =
+        dispatch(UboAction.ExecuteMenuAction(actionId, menuKey))
+
     public suspend fun pushMenu(menuKey: String): Unit =
         dispatch(UboAction.StackPushMenu(menuKey))
+
+    /**
+     * Prefix the core auto-generates for a SubMenuItem's "push this menu"
+     * action_id (`menu:select:<menuKey>`). These ids are never registered
+     * in the server's action registry — [executeMenuAction] can't resolve
+     * them — so they must be turned into a direct `StackPushMenuAction`
+     * client-side instead. Mirrors the Web UI's identical branch in
+     * `action-dispatcher.ts`/`TileGrid.tsx`.
+     */
+    private val menuSelectPrefix = "menu:select:"
+
+    /**
+     * Activate a selected [MenuItemData] the way the Web UI does: push
+     * directly for `menu:select:*` ids, execute-by-id otherwise (passing
+     * the item's `key` as `menuKey` so handlers that return a submenu still
+     * navigate into it), and fall back to the legacy by-label lookup only
+     * when the server sent no action_id at all. Every UI surface that
+     * renders `MenuItemData` should call this instead of hand-rolling the
+     * branch.
+     */
+    public suspend fun selectMenuItem(item: MenuItemData) {
+        val actionId = item.actionId
+        if (!actionId.isNullOrEmpty()) {
+            if (actionId.startsWith(menuSelectPrefix)) {
+                pushMenu(actionId.removePrefix(menuSelectPrefix))
+            } else {
+                executeMenuAction(actionId, item.key)
+            }
+        } else {
+            selectMenuItem(label = item.label)
+        }
+    }
 
     public suspend fun popStack(count: Int = 1): Unit =
         dispatch(UboAction.StackPop(count))
@@ -654,8 +698,14 @@ public class UboClient(
 
     // ---- Input demands ----
 
-    public suspend fun provideInput(id: String, value: String): Unit =
-        dispatch(UboAction.InputProvide(id, value))
+    /**
+     * [value] is the scalar shown to single-field callers; [data] should
+     * carry every field's name -> value for multi-field forms — server
+     * handlers read `result.data`, not `value`, so a form with more than
+     * one field silently no-ops without it.
+     */
+    public suspend fun provideInput(id: String, value: String, data: Map<String, String> = emptyMap()): Unit =
+        dispatch(UboAction.InputProvide(id, value, data))
 
     public suspend fun cancelInput(id: String): Unit =
         dispatch(UboAction.InputCancel(id))

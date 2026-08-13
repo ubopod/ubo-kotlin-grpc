@@ -88,13 +88,35 @@ public sealed class UboAction {
     public data class MenuChooseByIndex(val index: Int) : UboAction()
     public data class MenuChooseByLabel(val label: String) : UboAction()
     public data class MenuChooseByIcon(val icon: String) : UboAction()
+
+    /**
+     * Execute a menu item's registered action handler directly by its
+     * [actionId] (every `MenuItemData` carries one over the wire). Prefer
+     * this over [MenuChooseByLabel]/[MenuChooseByIcon] — those depend on the
+     * server's legacy label/icon lookup staying in sync with whatever the
+     * client is showing, which it isn't for every screen (prompts,
+     * notably). [menuKey] lets the reducer push the result onto the stack
+     * when the handler returns a submenu.
+     */
+    public data class ExecuteMenuAction(val actionId: String, val menuKey: String? = null) : UboAction()
+
     public data class StackPushMenu(val menuKey: String) : UboAction()
     public data class StackPop(val count: Int = 1) : UboAction()
     public object StackPopToRoot : UboAction()
 
     // ---- Input ----
 
-    public data class InputProvide(val id: String, val value: String) : UboAction()
+    /**
+     * [value] is the scalar shown to single-field callers; [data] should
+     * carry every field's name -> value for multi-field forms — server
+     * handlers read `result.data`, not `value`, so a form with more than
+     * one field silently no-ops without it.
+     */
+    public data class InputProvide(
+        val id: String,
+        val value: String,
+        val data: Map<String, String> = emptyMap(),
+    ) : UboAction()
     public data class InputCancel(val id: String) : UboAction()
 
     // ---- Assistant ----
