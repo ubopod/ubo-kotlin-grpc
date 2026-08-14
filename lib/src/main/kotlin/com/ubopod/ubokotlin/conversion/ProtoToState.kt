@@ -223,6 +223,8 @@ public object ProtoToState {
         unit = if (p.hasUnit()) p.unit else null,
         deviceClass = if (p.hasDeviceClass()) p.deviceClass else null,
         precision = if (p.hasPrecision()) p.precision else null,
+        displayValue = if (p.hasDisplayValue()) p.displayValue else null,
+        displayUnit = if (p.hasDisplayUnit()) p.displayUnit else null,
     )
 
     // ---- WebUI active inputs ----

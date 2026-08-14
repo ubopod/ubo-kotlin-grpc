@@ -17,6 +17,12 @@ public data class SensorEntityReading(
     val unit: String? = null,
     val deviceClass: String? = null,
     val precision: Long? = null,
+    /**
+     * Already converted to the device's effective UnitSystem — see
+     * `ubo_app/utils/units.py`. Clients display these, not [value]/[unit].
+     */
+    val displayValue: Float? = null,
+    val displayUnit: String? = null,
 )
 
 /**
