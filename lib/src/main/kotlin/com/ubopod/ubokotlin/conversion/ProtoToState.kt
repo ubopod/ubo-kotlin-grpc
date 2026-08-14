@@ -87,6 +87,16 @@ public object ProtoToState {
                         cpuPercent = if (s.hasCpuPercent()) s.cpuPercent else current.cpuPercent,
                         ramPercent = if (s.hasRamPercent()) s.ramPercent else current.ramPercent,
                         temperature = if (s.hasCpuTemperatureCelsius()) s.cpuTemperatureCelsius else current.temperature,
+                        temperatureDisplayValue = if (s.hasCpuTemperatureDisplayValue()) {
+                            s.cpuTemperatureDisplayValue
+                        } else {
+                            current.temperatureDisplayValue
+                        },
+                        temperatureDisplayUnit = if (s.hasCpuTemperatureDisplayUnit()) {
+                            s.cpuTemperatureDisplayUnit
+                        } else {
+                            current.temperatureDisplayUnit
+                        },
                         loadAverage1 = if (s.hasLoadAverage1()) s.loadAverage1 else current.loadAverage1,
                         loadAverage5 = if (s.hasLoadAverage5()) s.loadAverage5 else current.loadAverage5,
                         loadAverage15 = if (s.hasLoadAverage15()) s.loadAverage15 else current.loadAverage15,
@@ -113,6 +123,18 @@ public object ProtoToState {
                                 symbolCode = s.weather.symbolCode,
                                 temperatureCelsius = s.weather.temperatureCelsius,
                                 windSpeedMps = if (s.weather.hasWindSpeedMps()) s.weather.windSpeedMps else null,
+                                temperatureDisplayValue = s.weather.temperatureDisplayValue,
+                                temperatureDisplayUnit = s.weather.temperatureDisplayUnit,
+                                windSpeedDisplayValue = if (s.weather.hasWindSpeedDisplayValue()) {
+                                    s.weather.windSpeedDisplayValue
+                                } else {
+                                    null
+                                },
+                                windSpeedDisplayUnit = if (s.weather.hasWindSpeedDisplayUnit()) {
+                                    s.weather.windSpeedDisplayUnit
+                                } else {
+                                    null
+                                },
                             )
                         } else {
                             current.weather

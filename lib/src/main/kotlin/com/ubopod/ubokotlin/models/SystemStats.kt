@@ -21,6 +21,12 @@ public data class SystemStats(
      * match what the Web UI's Processor card shows).
      */
     val temperature: Float? = null,
+    /**
+     * Already converted to the device's effective UnitSystem — see
+     * `ubo_app/utils/units.py`. Clients display these, not [temperature].
+     */
+    val temperatureDisplayValue: Float? = null,
+    val temperatureDisplayUnit: String? = null,
     val loadAverage1: Float? = null,
     val loadAverage5: Float? = null,
     val loadAverage15: Float? = null,

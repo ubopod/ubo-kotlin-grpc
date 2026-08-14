@@ -13,4 +13,12 @@ public data class WeatherCondition(
     val symbolCode: String = "",
     val temperatureCelsius: Float = 0f,
     val windSpeedMps: Float? = null,
+    /**
+     * Already converted to the device's effective UnitSystem — see
+     * `ubo_app/utils/units.py`. Clients display these, not [temperatureCelsius].
+     */
+    val temperatureDisplayValue: Float = 0f,
+    val temperatureDisplayUnit: String = "°C",
+    val windSpeedDisplayValue: Float? = null,
+    val windSpeedDisplayUnit: String? = null,
 )
