@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import com.ubopod.ubokotlin.UboError
 import kotlinx.coroutines.channels.awaitClose
@@ -62,8 +63,16 @@ public object UboDiscovery {
         resolveTimeoutMs: Long = 4_000,
     ): Flow<Set<DiscoveredDevice>> {
         val nsdManager = context.applicationContext.getSystemService(Context.NSD_SERVICE) as NsdManager
+        // Resolved devices, keyed by service name, carried across emissions
+        // so a re-announcement of an already-known device (mDNS does this
+        // periodically) doesn't trigger another NsdManager resolve. Each
+        // resolve registers a system-level listener, and Android caps how
+        // many an app can have outstanding at once — re-resolving devices
+        // we already know about was burning through that budget for no
+        // reason and could starve out real discovery.
+        val resolvedByName = ConcurrentHashMap<String, DiscoveredDevice>()
         return rawSnapshots(nsdManager, serviceType)
-            .map { infos -> resolveAll(nsdManager, infos, resolveTimeoutMs) }
+            .map { infos -> resolveNew(nsdManager, infos, resolvedByName, resolveTimeoutMs) }
             .distinctUntilChanged()
     }
 
@@ -82,19 +91,30 @@ public object UboDiscovery {
 
         val listener = object : NsdManager.DiscoveryListener {
             override fun onStartDiscoveryFailed(serviceType: String?, errorCode: Int) {
+                Log.e("UboDiscovery", "onStartDiscoveryFailed type=$serviceType errorCode=$errorCode")
                 close(UboError.SubscriptionFailed(IllegalStateException("NSD discovery start failed: $errorCode")))
             }
 
-            override fun onStopDiscoveryFailed(serviceType: String?, errorCode: Int) = Unit
-            override fun onDiscoveryStarted(serviceType: String?) = Unit
-            override fun onDiscoveryStopped(serviceType: String?) = Unit
+            override fun onStopDiscoveryFailed(serviceType: String?, errorCode: Int) {
+                Log.w("UboDiscovery", "onStopDiscoveryFailed type=$serviceType errorCode=$errorCode")
+            }
+
+            override fun onDiscoveryStarted(serviceType: String?) {
+                Log.d("UboDiscovery", "onDiscoveryStarted type=$serviceType")
+            }
+
+            override fun onDiscoveryStopped(serviceType: String?) {
+                Log.d("UboDiscovery", "onDiscoveryStopped type=$serviceType")
+            }
 
             override fun onServiceFound(serviceInfo: NsdServiceInfo) {
+                Log.d("UboDiscovery", "onServiceFound name=${serviceInfo.serviceName} type=${serviceInfo.serviceType}")
                 visible[serviceInfo.serviceName] = serviceInfo
                 trySend(visible.values.toList())
             }
 
             override fun onServiceLost(serviceInfo: NsdServiceInfo) {
+                Log.d("UboDiscovery", "onServiceLost name=${serviceInfo.serviceName}")
                 visible.remove(serviceInfo.serviceName)
                 trySend(visible.values.toList())
             }
@@ -105,6 +125,7 @@ public object UboDiscovery {
         // service-found callback.
         trySend(emptyList())
 
+        Log.d("UboDiscovery", "discoverServices type=$serviceType")
         nsdManager.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, listener)
 
         awaitClose {
@@ -116,11 +137,23 @@ public object UboDiscovery {
         }
     }
 
-    private suspend fun resolveAll(
+    private suspend fun resolveNew(
         nsdManager: NsdManager,
         infos: List<NsdServiceInfo>,
+        resolvedByName: ConcurrentHashMap<String, DiscoveredDevice>,
         timeoutMs: Long,
-    ): Set<DiscoveredDevice> = infos.mapNotNull { resolveService(nsdManager, it, timeoutMs) }.toSet()
+    ): Set<DiscoveredDevice> {
+        val currentNames = infos.mapNotNull { it.serviceName }.toSet()
+        resolvedByName.keys.retainAll(currentNames)
+
+        for (info in infos) {
+            val name = info.serviceName ?: continue
+            if (resolvedByName.containsKey(name)) continue
+            val device = resolveService(nsdManager, info, timeoutMs) ?: continue
+            resolvedByName[name] = device
+        }
+        return resolvedByName.values.toSet()
+    }
 
     private suspend fun resolveService(
         nsdManager: NsdManager,
@@ -155,15 +188,18 @@ public object UboDiscovery {
         val callback = object : NsdManager.ServiceInfoCallback {
             private var fired = false
             override fun onServiceInfoCallbackRegistrationFailed(errorCode: Int) {
+                Log.e("UboDiscovery", "resolve(34) registrationFailed name=${info.serviceName} errorCode=$errorCode")
                 if (!fired) { fired = true; cont.resume(null) }
             }
             override fun onServiceUpdated(info: NsdServiceInfo) {
+                Log.d("UboDiscovery", "resolve(34) updated name=${info.serviceName} host=${info.host} port=${info.port}")
                 if (!fired) {
                     fired = true; cont.resume(info)
                 }
                 runCatching { nsdManager.unregisterServiceInfoCallback(this) }
             }
             override fun onServiceLost() {
+                Log.d("UboDiscovery", "resolve(34) lost name=${info.serviceName}")
                 if (!fired) { fired = true; cont.resume(null) }
             }
             override fun onServiceInfoCallbackUnregistered() = Unit
@@ -171,6 +207,7 @@ public object UboDiscovery {
         try {
             nsdManager.registerServiceInfoCallback(info, Runnable::run, callback)
         } catch (t: Throwable) {
+            Log.e("UboDiscovery", "resolve(34) registerServiceInfoCallback threw for name=${info.serviceName}", t)
             cont.resume(null)
         }
         cont.invokeOnCancellation {
@@ -189,15 +226,21 @@ public object UboDiscovery {
         val listener = object : NsdManager.ResolveListener {
             private var fired = false
             override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
+                Log.e("UboDiscovery", "resolve(legacy) failed name=${serviceInfo?.serviceName} errorCode=$errorCode")
                 if (!fired) { fired = true; cont.resume(null) }
             }
             override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
+                Log.d(
+                    "UboDiscovery",
+                    "resolve(legacy) resolved name=${serviceInfo.serviceName} host=${serviceInfo.host} port=${serviceInfo.port}",
+                )
                 if (!fired) { fired = true; cont.resume(serviceInfo) }
             }
         }
         try {
             nsdManager.resolveService(info, listener)
         } catch (t: Throwable) {
+            Log.e("UboDiscovery", "resolve(legacy) resolveService threw for name=${info.serviceName}", t)
             cont.resume(null)
         }
     }
