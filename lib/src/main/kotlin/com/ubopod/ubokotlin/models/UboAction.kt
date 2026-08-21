@@ -171,8 +171,15 @@ public sealed class UboAction {
      * consumes (empty = on-device system mic; a remote client sets a unique id
      * so the core listens only to that client's streamed samples and ignores
      * the device's built-in mic).
+     *
+     * [source] is a separate axis: it says *how* the session was triggered so
+     * the core can pick a turn-completion policy. Leaving it `null` means no
+     * policy applies and the device logs a warning.
      */
-    public data class AssistantStartListening(val audioSource: String = "") : UboAction()
+    public data class AssistantStartListening(
+        val audioSource: String = "",
+        val source: AssistantTriggerSource? = null,
+    ) : UboAction()
     public object AssistantStopListening : UboAction()
 
     /** Toggle assistant listening. See [AssistantStartListening] for [audioSource]. */

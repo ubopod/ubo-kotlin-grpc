@@ -4,6 +4,7 @@ import com.ubopod.ubokotlin.connection.ConnectionState
 import com.ubopod.ubokotlin.connection.ReconnectPolicy
 import com.ubopod.ubokotlin.connection.UboConnection
 import com.ubopod.ubokotlin.conversion.ProtoToState
+import com.ubopod.ubokotlin.models.AssistantTriggerSource
 import com.ubopod.ubokotlin.models.AudioDevice
 import com.ubopod.ubokotlin.models.AudioSampleData
 import com.ubopod.ubokotlin.models.Chime
@@ -691,8 +692,10 @@ public class UboClient(
      * to use the on-device system mic. The same id must be set on every
      * [reportAudioSample].
      */
-    public suspend fun startAssistantListening(audioSource: String = ""): Unit =
-        dispatch(UboAction.AssistantStartListening(audioSource))
+    public suspend fun startAssistantListening(
+        audioSource: String = "",
+        source: AssistantTriggerSource? = null,
+    ): Unit = dispatch(UboAction.AssistantStartListening(audioSource, source))
     public suspend fun stopAssistantListening(): Unit = dispatch(UboAction.AssistantStopListening)
 
     /** Toggle assistant listening. See [startAssistantListening] for [audioSource]. */

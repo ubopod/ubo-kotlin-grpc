@@ -1,6 +1,7 @@
 package com.ubopod.ubokotlin.conversion
 
 import com.google.protobuf.ByteString
+import com.ubopod.ubokotlin.models.AssistantTriggerSource
 import com.ubopod.ubokotlin.models.AudioDevice
 import com.ubopod.ubokotlin.models.AudioSampleData
 import com.ubopod.ubokotlin.models.Chime
@@ -10,6 +11,7 @@ import com.ubopod.ubokotlin.models.NotificationImportance
 import com.ubopod.ubokotlin.models.UboAction
 import com.ubopod.ubokotlin.models.UboColor
 import com.ubopod.ubokotlin.models.UboNotification
+import com.ubopod.ubokotlin.models.WakeMode
 import ubo.v1.Ubo
 
 /**
@@ -320,6 +322,9 @@ public object ProtoFromAction {
             is UboAction.AssistantStartListening -> builder.setAssistantStartListeningAction(
                 Ubo.AssistantStartListeningAction.newBuilder()
                     .setAudioSource(action.audioSource)
+                    .apply {
+                        action.source?.let { setSource(protoTriggerSource(it)) }
+                    }
                     .build(),
             )
             UboAction.AssistantStopListening -> builder.setAssistantStopListeningAction(
@@ -356,7 +361,35 @@ public object ProtoFromAction {
         return builder.build()
     }
 
+    private fun protoTriggerSource(
+        source: AssistantTriggerSource,
+    ): Ubo.AssistantTriggerSourceUnion {
+        val builder = Ubo.AssistantTriggerSourceUnion.newBuilder()
+        when (source) {
+            is AssistantTriggerSource.Grpc ->
+                builder.setGrpcTriggerSource(Ubo.GrpcTriggerSource.getDefaultInstance())
+
+            is AssistantTriggerSource.WakePhrase ->
+                builder.setWakePhraseTriggerSource(
+                    Ubo.WakePhraseTriggerSource.newBuilder()
+                        .setPhrase(source.phrase)
+                        .setDetector(source.detector)
+                        .setMode(toProtoWakeMode(source.mode))
+                        .build(),
+                )
+        }
+        return builder.build()
+    }
+
     // -------- Enum mappers --------
+
+    private fun toProtoWakeMode(mode: WakeMode): Ubo.WakeMode = when (mode) {
+        WakeMode.INTENTS -> Ubo.WakeMode.WAKE_MODE_INTENTS
+        WakeMode.QUICK_CHAT -> Ubo.WakeMode.WAKE_MODE_QUICK_CHAT
+        WakeMode.CONVERSATION -> Ubo.WakeMode.WAKE_MODE_CONVERSATION
+        WakeMode.STOP_TALKING -> Ubo.WakeMode.WAKE_MODE_STOP_TALKING
+        WakeMode.HOME_ASSISTANT -> Ubo.WakeMode.WAKE_MODE_HOME_ASSISTANT
+    }
 
     private fun toProtoKey(key: Key): Ubo.Key = when (key) {
         Key.BACK -> Ubo.Key.KEY_BACK
