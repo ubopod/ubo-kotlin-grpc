@@ -10,8 +10,12 @@ out/
 .vscode/
 .DS_Store
 
-# Generated proto sources are produced from src/main/proto/ at build time,
-# but the .proto files themselves are mirrored from ../ubo_app/rpc/proto/
-# via generate-protos.sh and ARE committed (see lib/src/main/proto/).
+# Proto sources are mirrored from ../ubo_app/rpc/proto/ by
+# generate-protos.sh and are NOT committed — same convention as the core
+# repo, which gitignores /ubo_app/rpc/proto/ubo and its generated bindings.
+# Regenerate with `uv run poe proto:kotlin` from the ubo-apple-apps root
+# before building; the Gradle protobuf plugin turns these into Kotlin/Java
+# stubs at build time.
+protos/src/main/proto/
 local.properties
 captures/

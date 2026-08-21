@@ -87,8 +87,13 @@ during `:lib:assemble`:
 
 Outputs land under `lib/build/generated/source/proto/<variant>/` and are
 included in the lib's source set. Run `./generate-protos.sh --check`
-in CI to detect drift between the committed proto tree and the parent
-Python repo.
+to detect drift between the local proto tree and the parent Python repo.
+
+The mirrored `.proto` files are **not committed** — they are gitignored,
+matching the core repo, which ignores `/ubo_app/rpc/proto/ubo` and its
+generated bindings. Sync them before building (step 1 above, or
+`uv run poe proto:kotlin` from the ubo-apple-apps root). A checkout
+without the sibling `ubo_app` tree cannot build until they are synced.
 
 > **Note on Kotlin DSL builders.** The protobuf `kotlin` builtin
 > (`wiFiUpdateRequestAction { reset = true }` style) is intentionally
