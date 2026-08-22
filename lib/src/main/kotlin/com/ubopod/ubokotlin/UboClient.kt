@@ -160,7 +160,7 @@ public class UboClient(
      */
     public suspend fun connect(
         host: String,
-        port: Int = 50051,
+        port: Int = 50053,
         useTls: Boolean = false,
         subscribeToDisplay: Boolean = false,
     ): Unit = withContext(Dispatchers.IO) {

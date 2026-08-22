@@ -66,7 +66,10 @@ public class UboConnection {
      *
      * Mirrors Swift `UboConnection.connect(host:port:useTLS:)`.
      */
-    public suspend fun connect(host: String, port: Int = 50051, useTls: Boolean = false) {
+    // 50053 is Envoy's raw-TCP proxy, which exposes the core's gRPC server to
+    // the LAN. The core itself listens on 127.0.0.1:50051 and is unreachable
+    // from another device, so a remote client must not default to it.
+    public suspend fun connect(host: String, port: Int = 50053, useTls: Boolean = false) {
         Log.d(TAG, "connect($host:$port, tls=$useTls) start, thread=${Thread.currentThread().name}")
         mutex.withLock {
             Log.d(TAG, "  acquired mutex")
