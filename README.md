@@ -77,7 +77,7 @@ Android `:lib` consumes them as compiled bytecode, sidesteps the limit.
 
 `generate-protos.sh` is the source-of-truth sync script. It copies the
 four proto packages — `package_info/`, `ubo/`, `store/`, `secrets/` —
-from `../ubo_app/rpc/proto/` into `lib/src/main/proto/`. The Gradle
+from `../ubo_app/rpc/proto/` into `protos/src/main/proto/`. The Gradle
 `com.google.protobuf` plugin then runs `protoc` with three plugins
 during `:lib:assemble`:
 

@@ -9,7 +9,7 @@
 # if present for environments that vendor the protos.
 #
 # Flags:
-#   --check         Compare ./lib/src/main/proto against the source tree and
+#   --check         Compare ./protos/src/main/proto against the source tree and
 #                   exit non-zero on drift. Used by CI.
 #   --proto-dir P   Override the proto source directory.
 
